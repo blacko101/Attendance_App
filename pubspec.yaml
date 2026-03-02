@@ -1,0 +1,41 @@
+name: smart_attend
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.5+1
+  http: ^1.6.0
+  shared_preferences: ^2.5.4
+  go_router: ^17.0.1
+  google_fonts: ^7.0.2
+  jwt_decoder: ^2.0.1
+  geolocator: ^14.0.2
+  permission_handler: ^12.0.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.1.4
+  material_symbols_icons: ^4.2892.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/cu_logo.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+
