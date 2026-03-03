@@ -4,6 +4,9 @@ import 'package:smart_attend/features/auth/views/mobile/welcome_screen.dart';
 import 'package:smart_attend/features/auth/views/mobile/login_screen.dart';
 import 'package:smart_attend/features/student/views/mobile/student_dashboard.dart';
 
+import 'features/attendance/views/mobile/qr_scanner_screen.dart';
+
+
 void main() {
   runApp(const MyApp());
 }
@@ -41,7 +44,8 @@ class MyApp extends StatelessWidget {
       routes: {
         WelcomeScreen.id:    (context) => const WelcomeScreen(),
         LoginScreen.id:      (context) => const LoginScreen(),
-        StudentDashboard.id: (context) => const StudentDashboard(), // ← added
+        StudentDashboard.id: (context) => const StudentDashboard(),
+        QrScannerScreen.id:  (context) => const QrScannerScreen(),
       },
     );
   }

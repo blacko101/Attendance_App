@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_attend/features/auth/controllers/auth_controller.dart';
-import 'package:smart_attend/features/auth/models/auth_model.dart';
 import 'package:smart_attend/features/auth/widgets/custom_button_widget.dart';
 import 'package:smart_attend/features/student/views/mobile/student_dashboard.dart';
 
@@ -45,8 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       print('⏳ Attempting login...');
       // ── Real backend: uncomment below
-      final AuthModel user = await _authController.login(
-      email:    _emailController.text,
+      await _authController.login(email:    _emailController.text,
       password: _passwordController.text,
        );
 
