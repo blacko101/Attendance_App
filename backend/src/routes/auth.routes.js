@@ -1,24 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const { register, login } = require("../controllers/auth.controller");
 
-const authMiddleware = require("../middleware/auth.middleware");
-const roleMiddleware = require("../middleware/role.middleware");
+const { register, login, getMe } = require("../controllers/auth.controller");
+const authMiddleware  = require("../middleware/auth.middleware");
+const roleMiddleware  = require("../middleware/role.middleware");
 
+// ── Public routes ──
 router.post("/register", register);
-router.post("/login", login);
+router.post("/login",    login);
 
-// Protected test route
+// ── Protected routes ──
 router.get(
-  "/dashboard",
+  "/me",
   authMiddleware,
   roleMiddleware("student", "lecturer", "admin"),
-  (req, res) => {
-    res.json({
-      message: "Welcome to your dashboard",
-      user: req.user,
-    });
-  }
+  getMe
 );
 
 module.exports = router;
