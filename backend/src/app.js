@@ -1,11 +1,12 @@
 const express = require("express");
 const cors    = require("cors");
+const app = express();
 
 const authRoutes = require("./routes/auth.routes");
 const attendanceRoutes = require('./routes/attendance.routes');
 app.use('/api/attendance', attendanceRoutes);
 
-const app = express();
+
 
 // ── CORS ──
 // Development: allow all. Production: lock to your frontend domain.
