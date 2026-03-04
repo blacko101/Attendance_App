@@ -1,15 +1,25 @@
+<<<<<<< HEAD
 const express    = require("express");
 const cors       = require("cors");
 const helmet     = require("helmet");
 const rateLimit  = require("express-rate-limit");
+=======
+const express = require("express");
+const cors    = require("cors");
+const app = express();
+>>>>>>> 81ae16cad99f55ec0833aeea8b043ba9becbdb90
 
 // ── Route imports ──────────────────────────────────────────────────
 const authRoutes       = require("./routes/auth.routes");
 const attendanceRoutes = require("./routes/attendance.routes");
 const adminRoutes      = require("./routes/admin.routes");
 
+<<<<<<< HEAD
 // ── App init ───────────────────────────────────────────────────────
 const app = express();
+=======
+
+>>>>>>> 81ae16cad99f55ec0833aeea8b043ba9becbdb90
 
 // ── Security headers — Helmet (Priority 5) ─────────────────────────
 //
