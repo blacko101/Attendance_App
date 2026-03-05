@@ -1,25 +1,15 @@
-<<<<<<< HEAD
 const express    = require("express");
 const cors       = require("cors");
 const helmet     = require("helmet");
 const rateLimit  = require("express-rate-limit");
-=======
-const express = require("express");
-const cors    = require("cors");
-const app = express();
->>>>>>> 81ae16cad99f55ec0833aeea8b043ba9becbdb90
 
 // ── Route imports ──────────────────────────────────────────────────
 const authRoutes       = require("./routes/auth.routes");
 const attendanceRoutes = require("./routes/attendance.routes");
 const adminRoutes      = require("./routes/admin.routes");
 
-<<<<<<< HEAD
 // ── App init ───────────────────────────────────────────────────────
 const app = express();
-=======
-
->>>>>>> 81ae16cad99f55ec0833aeea8b043ba9becbdb90
 
 // ── Security headers — Helmet (Priority 5) ─────────────────────────
 //
@@ -87,15 +77,29 @@ app.use(helmet());
 // BEFORE routes so pre-flight OPTIONS requests are handled correctly.
 // Development: allow all listed origins.
 // Production: set ALLOWED_ORIGINS="https://yourapp.com" in .env
+// In development, Flutter Web can open on any port (e.g. localhost:52345).
+// Rather than hardcoding every possible port, we allow any localhost origin
+// in dev and lock it down via ALLOWED_ORIGINS in production.
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:3000", "http://10.0.2.2:3000"];
+  : null; // null = use the function below for dev
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, curl)
+    // Allow requests with no origin (Android emulator, Postman, curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Production: check against explicit whitelist
+    if (allowedOrigins) {
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked: ${origin}`));
+    }
+
+    // Development: allow any localhost or 10.0.2.2 origin
+    // regardless of port (Flutter Web uses a random port)
+    const devPattern = /^http:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?$/;
+    if (devPattern.test(origin)) return callback(null, true);
+
     return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,

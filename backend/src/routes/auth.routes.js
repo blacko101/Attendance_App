@@ -4,78 +4,36 @@ const authMiddleware = require("../middleware/auth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
 
 const {
-  createSession,
-  checkIn,
-  getMySessions,
-  getSessionStudents,
-  getStudentAttendance,
-  endSession,
-} = require("../controllers/attendance.controller");
+  login,
+  register,
+  getMe,
+  updateRole,
+} = require("../controllers/auth.controller");
 
 // ─────────────────────────────────────────────
-//  GET /api/attendance/sessions
-//  Lecturer lists their own sessions (Priority 14).
-//  Supports ?isActive=true|false, ?page, ?limit
+//  POST /api/auth/register  — public
 // ─────────────────────────────────────────────
-router.get(
-  "/sessions",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  getMySessions
-);
+router.post("/register", register);
 
 // ─────────────────────────────────────────────
-//  POST /api/attendance/sessions
-//  Lecturer starts an attendance session.
+//  POST /api/auth/login  — public
 // ─────────────────────────────────────────────
-router.post(
-  "/sessions",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  createSession
-);
+router.post("/login", login);
 
 // ─────────────────────────────────────────────
-//  POST /api/attendance/checkin
-//  Student checks in using QR / 6-digit code payload.
+//  GET /api/auth/me  — protected
 // ─────────────────────────────────────────────
-router.post(
-  "/checkin",
-  authMiddleware,
-  roleMiddleware("student"),
-  checkIn
-);
+router.get("/me", authMiddleware, getMe);
 
 // ─────────────────────────────────────────────
-//  GET /api/attendance/sessions/:sessionId/students
-//  Lecturer views who has checked in (live count).
-// ─────────────────────────────────────────────
-router.get(
-  "/sessions/:sessionId/students",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  getSessionStudents
-);
-
-// ─────────────────────────────────────────────
-//  GET /api/attendance/student/:studentId
-//  Attendance history — own record (student) or any (lecturer/admin).
-// ─────────────────────────────────────────────
-router.get(
-  "/student/:studentId",
-  authMiddleware,
-  getStudentAttendance
-);
-
-// ─────────────────────────────────────────────
-//  PATCH /api/attendance/sessions/:sessionId/end
-//  Lecturer manually ends a session before expiry.
+//  PATCH /api/auth/users/:id/role  — admin only
+//  The only legitimate way to elevate a user's role
 // ─────────────────────────────────────────────
 router.patch(
-  "/sessions/:sessionId/end",
+  "/users/:id/role",
   authMiddleware,
-  roleMiddleware("lecturer"),
-  endSession
+  roleMiddleware("admin"),
+  updateRole
 );
 
 module.exports = router;

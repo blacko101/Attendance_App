@@ -143,14 +143,27 @@ async function main() {
   console.log("✅  Connected to MongoDB\n");
 
   // ── Wipe ─────────────────────────────────────
+  // FIX: use drop() instead of deleteMany({}).
+  // deleteMany() only removes documents — it leaves all indexes intact.
+  // If the schema has changed since the collection was first created,
+  // stale indexes on old field names survive the wipe and cause
+  // E11000 duplicate key errors on the very next insert (because the
+  // old fields are all null, which the unique index treats as a
+  // duplicate on the second document).
+  // drop() removes the collection AND all its indexes entirely.
+  // The next insert recreates the collection fresh with current indexes.
   if (WIPE) {
     console.log("🗑   Wiping collections…");
+    const db = mongoose.connection.db;
+    const existingCollections = await db.listCollections().toArray();
+    const names = existingCollections.map((c) => c.name);
+
     await Promise.all([
-      User.deleteMany({}),
-      AttendanceSession.deleteMany({}),
-      Attendance.deleteMany({}),
+      names.includes("users")             ? db.collection("users").drop()             : Promise.resolve(),
+      names.includes("attendancesessions") ? db.collection("attendancesessions").drop() : Promise.resolve(),
+      names.includes("attendances")        ? db.collection("attendances").drop()        : Promise.resolve(),
     ]);
-    console.log("    ✓ Users, Sessions and Attendance cleared\n");
+    console.log("    ✓ Users, Sessions and Attendance dropped (indexes cleared)\n");
   }
 
   if (WIPE_ONLY) {
@@ -225,7 +238,7 @@ async function main() {
       lecturerLat: 5.6037,
       lecturerLng: -0.1870,
       expiresAt:   pastExpiry,
-      signature:   "",            // will be set below
+      signature:   "pending",            // will be set below
       isActive:    false,
     });
     session1.signature = generateSignature(
@@ -254,7 +267,7 @@ async function main() {
       lecturerLat: 5.6037,
       lecturerLng: -0.1870,
       expiresAt:   futureExpiry,
-      signature:   "",
+      signature:   "pending",
       isActive:    true,
     });
     session2.signature = generateSignature(
@@ -283,7 +296,7 @@ async function main() {
       lecturerLat: null,
       lecturerLng: null,
       expiresAt:   onlineExpiry,
-      signature:   "",
+      signature:   "pending",
       isActive:    true,
     });
     session3.signature = generateSignature(
