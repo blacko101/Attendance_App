@@ -1,23 +1,32 @@
+import 'package:flutter/foundation.dart';
+
 // ─────────────────────────────────────────────────────────────────
 //  app_config.dart
 //  Central configuration — import this wherever a baseUrl is needed.
-//  Previously each controller had its own hardcoded copy, meaning a
-//  URL change required edits in multiple files.
 //
-//  To switch environments, change BASE_URL here only.
+//  Platform → correct host:
+//    Flutter Web (Chrome)    → localhost       (same machine as backend)
+//    Android emulator        → 10.0.2.2        (maps to host localhost)
+//    iOS simulator           → 127.0.0.1       (maps to host localhost)
+//    Physical device         → your LAN IP     (e.g. 192.168.x.x:5000)
+//    Production              → your API domain (e.g. api.smartattend.dev)
 //
-//  Android emulator  → 10.0.2.2 maps to the host machine's localhost
-//  iOS simulator     → 127.0.0.1 maps to the host machine's localhost
-//  Physical device   → use your machine's LAN IP (e.g. 192.168.x.x)
-//  Production        → replace with your deployed API domain
+//  kIsWeb is a Flutter built-in compile-time constant — no extra
+//  package needed.  It is true when built for the browser and false
+//  for all native targets (Android, iOS, desktop).
 // ─────────────────────────────────────────────────────────────────
 class AppConfig {
   AppConfig._(); // prevent instantiation
 
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static String get _host {
+    if (kIsWeb) return 'http://localhost:5000';       // Flutter Web / Chrome
+    return 'http://10.0.2.2:5000';                   // Android emulator
+    // Physical device → swap the line above to:
+    // return 'http://192.168.x.x:5000';
+  }
 
-  // Convenience getters for each endpoint group
-  static const String authUrl       = '$baseUrl/auth';
-  static const String attendanceUrl = '$baseUrl/attendance';
-  static const String adminUrl      = '$baseUrl/admin';
+  static String get baseUrl       => '$_host/api';
+  static String get authUrl       => '$_host/api/auth';
+  static String get attendanceUrl => '$_host/api/attendance';
+  static String get adminUrl      => '$_host/api/admin';
 }

@@ -6,6 +6,8 @@ import 'package:smart_attend/features/student/views/mobile/student_dashboard.dar
 import 'package:smart_attend/features/lecturer/views/lecturer_dashboard.dart';
 import 'package:smart_attend/features/dean/views/dean_access_screen.dart';
 
+import '../../../super_admin/views/super_admin_dashboard.dart';
+
 class LoginScreen extends StatefulWidget {
   static String id = 'login_screen';
   const LoginScreen({super.key});
@@ -48,6 +50,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
+      debugPrint('>>> ROLE RECEIVED: ${user?.role}');
+
       if (!mounted) return;
       _navigateByRole((user?.role ?? 'student').toLowerCase().trim());
 
@@ -75,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       case 'admin':
       // TODO Sprint 9: replace with SuperAdminDashboard.id
-        destination = DeanAccessScreen.id;
+        destination = SuperAdminDashboard.id;
         break;
 
       case 'dean':

@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/features/auth/models/auth_model.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
 
 class AuthController {
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  // baseUrl now comes from AppConfig — platform-aware (web vs emulator)
 
   AuthModel? _currentUser;
   AuthModel? get currentUser => _currentUser;
@@ -18,7 +19,7 @@ class AuthController {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
+        Uri.parse(AppConfig.authUrl + '/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email':    email.trim().toLowerCase(),
