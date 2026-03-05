@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_attend/features/auth/controllers/auth_controller.dart';
 import 'package:smart_attend/features/auth/views/mobile/login_screen.dart';
 import 'package:smart_attend/features/auth/widgets/custom_button_widget.dart';
+import 'package:smart_attend/features/student/views/mobile/student_dashboard.dart';
+import 'package:smart_attend/features/lecturer/views/lecturer_dashboard.dart';
+import 'package:smart_attend/features/dean/views/dean_access_screen.dart';
+import 'package:smart_attend/features/super_admin/views/super_admin_dashboard.dart';
 
 class WelcomeScreen extends StatefulWidget {
   static String id = 'welcome_screen';
@@ -12,8 +17,62 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
+  final _authController = AuthController();
+  bool _checkingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tryRestoreSession();
+  }
+
+  /// Attempt to restore an existing valid session from storage.
+  /// If a non-expired session exists, navigate directly to the correct
+  /// dashboard — skipping the welcome screen entirely.
+  Future<void> _tryRestoreSession() async {
+    final user = await _authController.restoreSession();
+
+    if (!mounted) return;
+
+    if (user != null) {
+      final role = (user.role ?? 'student').toLowerCase().trim();
+      final String destination;
+      switch (role) {
+        case 'lecturer':
+          destination = LecturerDashboard.id;
+          break;
+        case 'admin':
+          destination = SuperAdminDashboard.id;
+          break;
+        case 'dean':
+          destination = DeanAccessScreen.id;
+          break;
+        case 'student':
+        default:
+          destination = StudentDashboard.id;
+          break;
+      }
+      Navigator.pushReplacementNamed(context, destination);
+      return;
+    }
+
+    // No valid session — show the welcome screen normally.
+    setState(() => _checkingSession = false);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Show a brief spinner while checking for a saved session.
+    // This prevents the welcome screen from flashing before the redirect.
+    if (_checkingSession) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFAF9F6),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF9B1B42)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color.fromRGBO(255, 255, 255, 1),
       body: Stack(
@@ -41,7 +100,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ),
           ),
-
           Positioned(
             bottom: 0,
             right: 0,
@@ -53,7 +111,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ),
           ),
-
           Positioned(
             bottom: 0,
             right: 0,
@@ -66,14 +123,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: SafeArea(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -118,9 +173,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 80),
-                    CustomButtonWidget(onPressed: () {
-                      Navigator.pushNamed(context, LoginScreen.id);
-                    }, text: 'Get Started'),
+                    CustomButtonWidget(
+                      onPressed: () {
+                        Navigator.pushNamed(context, LoginScreen.id);
+                      },
+                      text: 'Get Started',
+                    ),
                   ],
                 ),
               ),

@@ -5,10 +5,9 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/features/auth/models/auth_model.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
+import 'package:smart_attend/features/auth/views/mobile/login_screen.dart';
 
 class AuthController {
-  // baseUrl now comes from AppConfig — platform-aware (web vs emulator)
-
   AuthModel? _currentUser;
   AuthModel? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
@@ -18,17 +17,20 @@ class AuthController {
     required String password,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse(AppConfig.authUrl + '/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email':    email.trim().toLowerCase(),
-          'password': password,
-        }),
-      ).timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw Exception('Connection timed out. Check your internet.'),
-      );
+      final response = await http
+          .post(
+            Uri.parse(AppConfig.authUrl + '/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email.trim().toLowerCase(),
+              'password': password,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () =>
+                throw Exception('Connection timed out. Check your internet.'),
+          );
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
@@ -42,22 +44,21 @@ class AuthController {
         final String userId = payload['id'] as String? ?? '';
 
         final user = AuthModel.fromLoginResponse(
-          token:       token,
-          role:        userData['role']        as String? ?? 'student',
-          id:          userData['_id']         as String? ?? userId,
-          fullName:    userData['fullName']    as String? ?? '',
-          email:       userData['email']       as String? ?? email.trim().toLowerCase(),
+          token: token,
+          role: userData['role'] as String? ?? 'student',
+          id: userData['_id'] as String? ?? userId,
+          fullName: userData['fullName'] as String? ?? '',
+          email: userData['email'] as String? ?? email.trim().toLowerCase(),
           indexNumber: userData['indexNumber'] as String?,
-          programme:   userData['programme']   as String?,  // ← add
-          level:       userData['level']       as String?,  // ← add
-          staffId:     userData['staffId']     as String?,
-          department:  userData['department']  as String?,  // ← add
+          programme: userData['programme'] as String?,
+          level: userData['level'] as String?,
+          staffId: userData['staffId'] as String?,
+          department: userData['department'] as String?,
         );
 
         _currentUser = user;
         await SessionService.saveSession(user);
         return user;
-
       } else if (response.statusCode == 401) {
         throw Exception('Invalid email or password.');
       } else if (response.statusCode == 403) {
@@ -65,12 +66,14 @@ class AuthController {
       } else if (response.statusCode == 500) {
         throw Exception('Server error. Please try again later.');
       } else {
-        final msg = body['message'] as String? ?? 'Login failed. Please try again.';
+        final msg =
+            body['message'] as String? ?? 'Login failed. Please try again.';
         throw Exception(msg);
       }
-
     } on http.ClientException {
-      throw Exception('Cannot connect to server. Make sure backend is running.');
+      throw Exception(
+        'Cannot connect to server. Make sure backend is running.',
+      );
     } on FormatException {
       throw Exception('Unexpected server response. Please try again.');
     }
@@ -96,8 +99,8 @@ class AuthController {
     if (context.mounted) {
       Navigator.pushNamedAndRemoveUntil(
         context,
-        'login_screen',
-            (route) => false,
+        LoginScreen.id,
+        (route) => false,
       );
     }
   }
