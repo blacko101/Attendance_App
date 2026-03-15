@@ -19,14 +19,14 @@ class AppConfig {
   AppConfig._(); // prevent instantiation
 
   static String get _host {
-    if (kIsWeb) return 'http://localhost:5000';       // Flutter Web / Chrome
-    return 'http://10.0.2.2:5000';                   // Android emulator
+    if (kIsWeb) return 'http://localhost:5000'; // Flutter Web / Chrome
+    return 'http://10.105.189.143:5000'; // Android emulator
     // Physical device → swap the line above to:
     // return 'http://192.168.x.x:5000';
   }
 
-  static String get baseUrl       => '$_host/api';
-  static String get authUrl       => '$_host/api/auth';
+  static String get baseUrl => '$_host/api';
+  static String get authUrl => '$_host/api/auth';
   static String get attendanceUrl => '$_host/api/attendance';
-  static String get adminUrl      => '$_host/api/admin';
+  static String get adminUrl => '$_host/api/admin';
 }
