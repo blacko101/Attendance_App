@@ -11,12 +11,6 @@ const AttendanceSession = require("../models/AttendanceSession");
 // ─────────────────────────────────────────────────────────────────
 //  LIST ALL USERS
 //  GET /api/admin/users
-//  Query params:
-//    role     — filter by "student" | "lecturer" | "admin"
-//    isActive — filter by "true" | "false"
-//    search   — partial match on fullName or email
-//    page     — page number (default 1)
-//    limit    — results per page (default 20, max 100)
 // ─────────────────────────────────────────────────────────────────
 exports.listUsers = async (req, res) => {
   try {
@@ -30,7 +24,6 @@ exports.listUsers = async (req, res) => {
 
     const filter = {};
 
-    // ── Role filter ──────────────────────────────
     const validRoles = ["student", "lecturer", "admin"];
     if (role) {
       if (!validRoles.includes(role)) {
@@ -41,22 +34,16 @@ exports.listUsers = async (req, res) => {
       filter.role = role;
     }
 
-    // ── Active / suspended filter ────────────────
     if (isActive !== undefined) {
       filter.isActive = isActive === "true";
     }
 
-    // ── Name / email search ──────────────────────
-    // Case-insensitive partial match. We use a regex rather than
-    // $text search because the fields don't have a text index, and
-    // partial matching ("jo" → "John") works better for a search box.
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const pattern = new RegExp(escaped, "i");
       filter.$or = [{ fullName: pattern }, { email: pattern }];
     }
 
-    // ── Pagination ───────────────────────────────
     const pageNum  = Math.max(1, parseInt(page, 10)  || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const skip     = (pageNum - 1) * limitNum;
@@ -84,6 +71,90 @@ exports.listUsers = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
+//  CREATE USER
+//  POST /api/admin/users
+//  Auth: admin only
+// ─────────────────────────────────────────────────────────────────
+exports.createUser = async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      role       = "student",
+      indexNumber,
+      programme,
+      level,
+      staffId,
+      department,
+    } = req.body;
+
+    if (!fullName || !email) {
+      return res.status(400).json({
+        message: "fullName and email are required.",
+      });
+    }
+
+    if (!email.toLowerCase().endsWith("@central.edu.gh")) {
+      return res.status(400).json({
+        message: "Email must end in @central.edu.gh.",
+      });
+    }
+
+    if (role === "student") {
+      if (!programme) {
+        return res.status(400).json({ message: "programme is required for students." });
+      }
+      if (!level || !["100","200","300","400","500"].includes(String(level))) {
+        return res.status(400).json({ message: "level must be 100, 200, 300, 400 or 500." });
+      }
+      if (!indexNumber) {
+        return res.status(400).json({ message: "indexNumber is required for students." });
+      }
+    }
+
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      return res.status(409).json({ message: "A user with this email already exists." });
+    }
+
+    // All admin-created accounts get the fixed default password.
+    // mustChangePassword forces the user to change it on first login.
+    const rawPassword    = "Central@123";
+    const hashedPassword = await require("bcryptjs").hash(rawPassword, 10);
+
+    const user = await User.create({
+      fullName:           fullName.trim(),
+      email:              email.trim().toLowerCase(),
+      password:           hashedPassword,
+      role,
+      indexNumber:        indexNumber || undefined,
+      programme:          programme   || undefined,
+      level:              level       ? String(level) : undefined,
+      staffId:            staffId     || undefined,
+      department:         department  || undefined,
+      isActive:           true,
+      mustChangePassword: true,
+    });
+
+    return res.status(201).json({
+      message:           "User created successfully.",
+      user,
+      temporaryPassword: rawPassword,
+    });
+
+  } catch (err) {
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0] || "field";
+      return res.status(409).json({
+        message: `A user with this ${field} already exists.`,
+      });
+    }
+    console.error("createUser error:", err.message);
+    return res.status(500).json({ message: "Server error. Please try again." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
 //  GET SINGLE USER
 //  GET /api/admin/users/:id
 // ─────────────────────────────────────────────────────────────────
@@ -106,12 +177,6 @@ exports.getUser = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 //  SUSPEND / REACTIVATE USER
 //  PATCH /api/admin/users/:id/status
-//  Body: { isActive: true | false }
-//
-//  Sets isActive on the account. Because authMiddleware checks
-//  isActive on every request, a suspended user is effectively
-//  locked out on their very next API call — no need to invalidate
-//  their JWT manually.
 // ─────────────────────────────────────────────────────────────────
 exports.setUserStatus = async (req, res) => {
   try {
@@ -121,8 +186,6 @@ exports.setUserStatus = async (req, res) => {
       return res.status(400).json({ message: "isActive must be a boolean." });
     }
 
-    // Prevent an admin from suspending their own account and locking
-    // themselves out of the system entirely.
     if (req.params.id === req.user.id) {
       return res.status(400).json({
         message: "You cannot change the status of your own account.",
@@ -151,12 +214,8 @@ exports.setUserStatus = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
-//  LIST ALL ATTENDANCE SESSIONS  (admin view — all lecturers)
+//  LIST ALL ATTENDANCE SESSIONS
 //  GET /api/admin/sessions
-//  Query params:
-//    courseCode — filter by course
-//    isActive   — "true" | "false"
-//    page, limit
 // ─────────────────────────────────────────────────────────────────
 exports.listSessions = async (req, res) => {
   try {
@@ -203,7 +262,7 @@ exports.listSessions = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
-//  GET FULL ATTENDANCE REPORT FOR A SESSION  (admin view)
+//  GET FULL ATTENDANCE REPORT FOR A SESSION
 //  GET /api/admin/sessions/:sessionId/report
 // ─────────────────────────────────────────────────────────────────
 exports.getSessionReport = async (req, res) => {
@@ -234,10 +293,6 @@ exports.getSessionReport = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 //  DASHBOARD STATS
 //  GET /api/admin/stats
-//
-//  Returns high-level counts for the admin dashboard. Uses
-//  Promise.all to run all DB queries in parallel — much faster
-//  than awaiting them sequentially.
 // ─────────────────────────────────────────────────────────────────
 exports.getStats = async (req, res) => {
   try {

@@ -8,32 +8,17 @@ const {
   register,
   getMe,
   updateRole,
+  changePassword,
 } = require("../controllers/auth.controller");
 
-// ─────────────────────────────────────────────
-//  POST /api/auth/register  — public
-// ─────────────────────────────────────────────
 router.post("/register", register);
+router.post("/login",    login);
 
-// ─────────────────────────────────────────────
-//  POST /api/auth/login  — public
-// ─────────────────────────────────────────────
-router.post("/login", login);
+// Protected
+router.get("/me",               authMiddleware, getMe);
+router.post("/change-password", authMiddleware, changePassword);
 
-// ─────────────────────────────────────────────
-//  GET /api/auth/me  — protected
-// ─────────────────────────────────────────────
-router.get("/me", authMiddleware, getMe);
-
-// ─────────────────────────────────────────────
-//  PATCH /api/auth/users/:id/role  — admin only
-//  The only legitimate way to elevate a user's role
-// ─────────────────────────────────────────────
-router.patch(
-  "/users/:id/role",
-  authMiddleware,
-  roleMiddleware("admin"),
-  updateRole
-);
+// Admin only
+router.patch("/users/:id/role", authMiddleware, roleMiddleware("admin"), updateRole);
 
 module.exports = router;
