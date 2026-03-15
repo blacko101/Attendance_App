@@ -49,6 +49,7 @@ class AuthController {
           id: userData['_id'] as String? ?? userId,
           fullName: userData['fullName'] as String? ?? '',
           email: userData['email'] as String? ?? email.trim().toLowerCase(),
+          mustChangePassword: body['mustChangePassword'] as bool? ?? false,
           indexNumber: userData['indexNumber'] as String?,
           programme: userData['programme'] as String?,
           level: userData['level'] as String?,
@@ -90,6 +91,12 @@ class AuthController {
 
     _currentUser = user;
     return user;
+  }
+
+  Future<void> markPasswordChanged() async {
+    if (_currentUser == null) return;
+    _currentUser = _currentUser!.copyWithPasswordChanged();
+    await SessionService.saveSession(_currentUser!);
   }
 
   Future<void> logout(BuildContext context) async {
