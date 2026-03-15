@@ -27,13 +27,13 @@ class ClassSessionModel {
   });
 
   String get formattedTime {
-    String _fmt(TimeOfDay t) {
+    String fmt(TimeOfDay t) {
       final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
       final m = t.minute.toString().padLeft(2, '0');
       final p = t.period == DayPeriod.am ? 'AM' : 'PM';
       return '$h:$m $p';
     }
-    return '${_fmt(startTime)} - ${_fmt(endTime)}';
+    return '${fmt(startTime)} - ${fmt(endTime)}';
   }
 
   Color get statusColor {

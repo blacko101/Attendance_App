@@ -7,7 +7,6 @@ import 'package:smart_attend/features/lecturer/controllers/lecturer_controller.d
 import 'package:smart_attend/features/lecturer/models/lecturer_model.dart';
 import 'package:smart_attend/features/auth/views/mobile/login_screen.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
-import 'package:smart_attend/features/auth/models/auth_model.dart';
 
 // ── Theme ──────────────────────────────────────
 const _kCherry = Color(0xFF9B1B42);
