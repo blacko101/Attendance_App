@@ -24,17 +24,24 @@ class CheckInController {
 
   // ── GET CURRENT STUDENT POSITION ─────────────────────────────────
   Future<Position?> getCurrentPosition() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
+
     final hasPermission = await requestLocationPermission();
     if (!hasPermission) return null;
 
     try {
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 20),
         ),
       );
     } catch (_) {
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) return last;
+      } catch (_) {}
       return null;
     }
   }
