@@ -38,20 +38,20 @@ import 'package:smart_attend/features/auth/services/session_service.dart';
 // ─────────────────────────────────────────────────────────────────
 class LecturerController {
   static const int refreshInPerson = 20; // seconds — 6-digit code refresh
-  static const int refreshOnline   = 20;
+  static const int refreshOnline = 20;
 
   // ── FETCH LECTURER PROFILE ────────────────────────────────────────
   // TODO: GET /api/auth/me — use the authenticated user's profile
   Future<LecturerModel> fetchProfile(String lecturerId) async {
     await Future.delayed(const Duration(milliseconds: 400));
     return const LecturerModel(
-      id:         'lec_001',
-      fullName:   'Kwame Asante',
-      email:      'k.asante@university.edu.gh',
-      staffId:    'STF/2018/0012',
+      id: 'lec_001',
+      fullName: 'Kwame Asante',
+      email: 'k.asante@university.edu.gh',
+      staffId: 'STF/2018/0012',
       department: 'Computer Science & Engineering',
-      role:       'lecturer',
-      courseIds:  ['c1', 'c2', 'c3'],
+      role: 'lecturer',
+      courseIds: ['c1', 'c2', 'c3'],
     );
   }
 
@@ -61,10 +61,10 @@ class LecturerController {
     await Future.delayed(const Duration(milliseconds: 300));
     return {
       'scheduled': 3,
-      'attended':  2,
-      'missed':    1,
-      'inPerson':  2,
-      'online':    1,
+      'attended': 2,
+      'missed': 1,
+      'inPerson': 2,
+      'online': 1,
     };
   }
 
@@ -74,28 +74,40 @@ class LecturerController {
     await Future.delayed(const Duration(milliseconds: 500));
     return [
       const LecturerCourseModel(
-        id: 'c1', courseCode: 'CS 301',
+        id: 'c1',
+        courseCode: 'CS 301',
         courseName: 'Data Structures & Algorithms',
-        department: 'Computer Science', totalStudents: 45,
-        weekdays: [2, 5], schedule: 'Tue, Fri',
+        department: 'Computer Science',
+        totalStudents: 45,
+        weekdays: [2, 5],
+        schedule: 'Tue, Fri',
         room: 'ICT Block - Lab 1',
-        startTime: '10:00 AM', endTime: '11:30 AM',
+        startTime: '10:00 AM',
+        endTime: '11:30 AM',
       ),
       const LecturerCourseModel(
-        id: 'c2', courseCode: 'CS 201',
+        id: 'c2',
+        courseCode: 'CS 201',
         courseName: 'Object Oriented Programming',
-        department: 'Computer Science', totalStudents: 60,
-        weekdays: [1, 3], schedule: 'Mon, Wed',
+        department: 'Computer Science',
+        totalStudents: 60,
+        weekdays: [1, 3],
+        schedule: 'Mon, Wed',
         room: 'ICT Block - Room 3',
-        startTime: '12:00 PM', endTime: '1:30 PM',
+        startTime: '12:00 PM',
+        endTime: '1:30 PM',
       ),
       const LecturerCourseModel(
-        id: 'c3', courseCode: 'CS 401',
+        id: 'c3',
+        courseCode: 'CS 401',
         courseName: 'Software Engineering',
-        department: 'Computer Science', totalStudents: 38,
-        weekdays: [3, 5], schedule: 'Wed, Fri',
+        department: 'Computer Science',
+        totalStudents: 38,
+        weekdays: [3, 5],
+        schedule: 'Wed, Fri',
         room: 'Block A - Room 7',
-        startTime: '2:00 PM', endTime: '3:30 PM',
+        startTime: '2:00 PM',
+        endTime: '3:30 PM',
       ),
     ];
   }
@@ -103,45 +115,56 @@ class LecturerController {
   // ── FETCH WEEKLY SCHEDULE ─────────────────────────────────────────
   // TODO: GET /api/attendance/sessions (own sessions by lecturerId)
   Future<List<WeeklySessionModel>> fetchWeeklySchedule(
-      String lecturerId) async {
+    String lecturerId,
+  ) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    final now    = DateTime.now();
+    final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     return [
       WeeklySessionModel(
-        id: 'ws1', courseCode: 'CS 301',
+        id: 'ws1',
+        courseCode: 'CS 301',
         courseName: 'Data Structures & Algorithms',
         room: 'ICT Block - Lab 1',
         date: monday.add(const Duration(days: 1)),
-        startTime: '10:00 AM', endTime: '11:30 AM',
+        startTime: '10:00 AM',
+        endTime: '11:30 AM',
         status: SessionStatus.held,
-        studentsAttended: 40, totalStudents: 45,
+        studentsAttended: 40,
+        totalStudents: 45,
       ),
       WeeklySessionModel(
-        id: 'ws2', courseCode: 'CS 201',
+        id: 'ws2',
+        courseCode: 'CS 201',
         courseName: 'Object Oriented Programming',
         room: 'ICT Block - Room 3',
         date: monday,
-        startTime: '12:00 PM', endTime: '1:30 PM',
+        startTime: '12:00 PM',
+        endTime: '1:30 PM',
         status: SessionStatus.held,
-        studentsAttended: 55, totalStudents: 60,
+        studentsAttended: 55,
+        totalStudents: 60,
       ),
       WeeklySessionModel(
-        id: 'ws3', courseCode: 'CS 401',
+        id: 'ws3',
+        courseCode: 'CS 401',
         courseName: 'Software Engineering',
         room: 'Block A - Room 7',
         date: monday.add(const Duration(days: 2)),
-        startTime: '2:00 PM', endTime: '3:30 PM',
+        startTime: '2:00 PM',
+        endTime: '3:30 PM',
         status: SessionStatus.notHeld,
         notHeldReason: 'Lecturer indisposed',
         totalStudents: 38,
       ),
       WeeklySessionModel(
-        id: 'ws4', courseCode: 'CS 301',
+        id: 'ws4',
+        courseCode: 'CS 301',
         courseName: 'Data Structures & Algorithms',
         room: 'ICT Block - Lab 1',
         date: monday.add(const Duration(days: 4)),
-        startTime: '10:00 AM', endTime: '11:30 AM',
+        startTime: '10:00 AM',
+        endTime: '11:30 AM',
         status: SessionStatus.upcoming,
         totalStudents: 45,
       ),
@@ -150,20 +173,35 @@ class LecturerController {
 
   // ── GET LOCATION ──────────────────────────────────────────────────
   Future<Position?> getCurrentPosition() async {
+    // Check if location services are enabled at all on the device.
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
+
     LocationPermission perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
     }
     if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) return null;
+        perm == LocationPermission.deniedForever)
+      return null;
+
+    // Try with medium accuracy first (uses WiFi/cell towers — fast, works indoors).
+    // Falls back to last known position if even that times out.
     try {
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy:  LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
+          accuracy: LocationAccuracy.medium, // fast, works indoors & outdoors
+          timeLimit: Duration(seconds: 20), // generous timeout for real devices
         ),
       );
     } catch (_) {
+      // Timed out — try the last known position as a fallback.
+      // This is acceptable for attendance since the lecturer is
+      // physically present; exact precision isn't critical.
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) return last;
+      } catch (_) {}
       return null;
     }
   }
@@ -201,25 +239,25 @@ class LecturerController {
 
     // ── 3. Call the backend ──────────────────────────────────────
     try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.attendanceUrl}/sessions'),
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': 'Bearer ${session.token}',
-        },
-        body: jsonEncode({
-          'courseCode':      course.courseCode,
-          'courseName':      course.courseName,
-          'type':            type == AttendanceType.inPerson
-              ? 'inPerson'
-              : 'online',
-          'durationSeconds': durationSeconds,
-          // Use == null check (not !value) so a GPS coordinate of
-          // exactly 0 (equator/prime meridian) is sent correctly.
-          if (pos != null) 'lecturerLat': pos.latitude,
-          if (pos != null) 'lecturerLng': pos.longitude,
-        }),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.attendanceUrl}/sessions'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${session.token}',
+            },
+            body: jsonEncode({
+              'courseCode': course.courseCode,
+              'courseName': course.courseName,
+              'type': type == AttendanceType.inPerson ? 'inPerson' : 'online',
+              'durationSeconds': durationSeconds,
+              // Use == null check (not !value) so a GPS coordinate of
+              // exactly 0 (equator/prime meridian) is sent correctly.
+              if (pos != null) 'lecturerLat': pos.latitude,
+              if (pos != null) 'lecturerLng': pos.longitude,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 201) return null;
 
@@ -233,7 +271,7 @@ class LecturerController {
       //   qrPayload: { sessionId, courseCode, expiresAt (ms), signature }
       // }
       final serverSessionId = body['sessionId'] as String;
-      final qrPayloadMap    = body['qrPayload']  as Map<String, dynamic>;
+      final qrPayloadMap = body['qrPayload'] as Map<String, dynamic>;
 
       // ── 5. Build the QR data string ───────────────────────────
       // Encode the server's qrPayload as JSON, adding courseName for
@@ -246,20 +284,19 @@ class LecturerController {
 
       // ── 6. Build the active session model ────────────────────
       return ActiveSessionModel(
-        sessionId:      serverSessionId,     // real MongoDB _id
-        courseCode:     course.courseCode,
-        courseName:     course.courseName,
-        type:           type,
-        qrData:         qrData,              // JSON with server signature
-        sixDigitCode:   generateSixDigitCode(),
-        totalSeconds:   durationSeconds,
-        secondsLeft:    durationSeconds,
+        sessionId: serverSessionId, // real MongoDB _id
+        courseCode: course.courseCode,
+        courseName: course.courseName,
+        type: type,
+        qrData: qrData, // JSON with server signature
+        sixDigitCode: generateSixDigitCode(),
+        totalSeconds: durationSeconds,
+        secondsLeft: durationSeconds,
         studentsMarked: 0,
-        totalStudents:  course.totalStudents,
-        lecturerLat:    pos?.latitude,
-        lecturerLng:    pos?.longitude,
+        totalStudents: course.totalStudents,
+        lecturerLat: pos?.latitude,
+        lecturerLng: pos?.longitude,
       );
-
     } catch (_) {
       return null;
     }
@@ -275,13 +312,15 @@ class LecturerController {
     if (session == null) return false;
 
     try {
-      final response = await http.patch(
-        Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/end'),
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': 'Bearer ${session.token}',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .patch(
+            Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/end'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${session.token}',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
       return response.statusCode == 200;
     } catch (_) {
