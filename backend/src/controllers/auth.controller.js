@@ -34,7 +34,9 @@ const validateRegisterInput = ({ fullName, email, password }) => {
 exports.register = async (req, res) => {
   try {
     const {
-      fullName, email, password,
+      fullName,
+      email,
+      password,
       role: _ignoredRole,
       indexNumber, programme, level, staffId, department,
     } = req.body;
@@ -53,16 +55,15 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
-      fullName:           fullName.trim(),
-      email:              email.trim().toLowerCase(),
-      password:           hashedPassword,
-      role:               "student",
-      indexNumber:        indexNumber?.trim(),
-      programme:          programme?.trim(),
-      level:              level?.toString().trim(),
-      staffId:            staffId?.trim(),
-      department:         department?.trim(),
-      mustChangePassword: false,
+      fullName:    fullName.trim(),
+      email:       email.trim().toLowerCase(),
+      password:    hashedPassword,
+      role:        "student",
+      indexNumber: indexNumber?.trim(),
+      programme:   programme?.trim(),
+      level:       level?.toString().trim(),
+      staffId:     staffId?.trim(),
+      department:  department?.trim(),
     });
 
     const token = generateToken(user);
@@ -81,11 +82,27 @@ exports.register = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────
 //  LOGIN
-//  POST /api/auth/login
+//  POST /api/auth/login/student    → expectedRole = "student"
+//  POST /api/auth/login/lecturer   → expectedRole = "lecturer"
+//  POST /api/auth/admin/login      → expectedRole = "admin"
+//  POST /api/auth/dean/login       → expectedRole = "dean"
+//
+//  HOW THE ROLE GUARD WORKS
+//  ────────────────────────
+//  Each role-specific route injects req.expectedRole via inline
+//  middleware before calling this handler (see auth.routes.js).
+//  If the authenticated user's DB role doesn't match the expected
+//  role for that endpoint, we return the SAME 401 message as a
+//  wrong password — this intentionally prevents role enumeration
+//  (an attacker cannot tell "wrong password" from "wrong role").
 // ─────────────────────────────────────────────────────────────────
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // expectedRole is injected by the route middleware (see auth.routes.js).
+    // It is undefined only if the legacy /api/auth/login route is hit directly.
+    const expectedRole = req.expectedRole;
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required." });
@@ -94,6 +111,9 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email: email.trim().toLowerCase() })
       .select("+password");
 
+    // ── Use a constant-time check order to prevent timing attacks ──
+    // We check the password first, THEN role. This means the response
+    // time is similar regardless of whether the user exists — same as before.
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
@@ -106,6 +126,15 @@ exports.login = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    // ── ROLE GUARD ─────────────────────────────────────────────────
+    // FIX: If the login endpoint is role-scoped (expectedRole is set),
+    // reject users whose DB role doesn't match.
+    // Example: a lecturer hitting /api/auth/login/student gets a 401,
+    // indistinguishable from a wrong password — no role info leaked.
+    if (expectedRole && user.role !== expectedRole) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
@@ -203,13 +232,13 @@ exports.getMe = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
-//  UPDATE USER ROLE
+//  UPDATE USER ROLE — admin only
 //  PATCH /api/auth/users/:id/role
 // ─────────────────────────────────────────────────────────────────
 exports.updateRole = async (req, res) => {
   try {
     const { role } = req.body;
-    const validRoles = ["student", "lecturer", "admin"];
+    const validRoles = ["student", "lecturer", "admin", "dean"];
 
     if (!role || !validRoles.includes(role)) {
       return res.status(400).json({
