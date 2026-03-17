@@ -1,130 +1,93 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:smart_attend/core/config/app_config.dart';
+import 'package:smart_attend/features/auth/services/session_service.dart';
 import 'package:smart_attend/features/student/models/course_detail_model.dart';
 
 class CoursesController {
-  // TODO: Replace with real API call:
-  // GET /api/students/:id/courses/attendance?semester=current
+  // ── FETCH COURSES WITH ATTENDANCE BREAKDOWN ───────────────────────
+  // GET /api/attendance/student/:studentId
+  // Groups the student's attendance records by courseCode and computes
+  // present/absent counts — no hardcoded values.
   Future<List<CourseAttendanceModel>> fetchCoursesAttendance(
-      String studentId) async {
-    await Future.delayed(const Duration(milliseconds: 600));
+    String studentId,
+  ) async {
+    final session = await SessionService.getSession();
+    if (session == null) return [];
 
-    return [
-      CourseAttendanceModel(
-        id:           'c1',
-        courseCode:   'MATH 101',
-        courseName:   'Mathematics',
-        instructor:   'Dr. Mensah',
-        room:         'Block A - Room 12',
-        schedule:     'Mon, Wed, Fri',
-        totalClasses: 20,
-        attended:     17,
-        absent:       3,
-        history: [
-          CourseSessionHistory(date: DateTime(2026, 2, 2),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 5),  attended: false, reason: 'Sick'),
-          CourseSessionHistory(date: DateTime(2026, 2, 9),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 12), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 16), attended: false, reason: 'Transport'),
-          CourseSessionHistory(date: DateTime(2026, 2, 19), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 23), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 26), attended: false, reason: 'Family emergency'),
-          CourseSessionHistory(date: DateTime(2026, 3, 2),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 3, 5),  attended: true),
-        ],
-      ),
-      CourseAttendanceModel(
-        id:           'c2',
-        courseCode:   'PHY 201',
-        courseName:   'Physics Lab',
-        instructor:   'Prof. Asante',
-        room:         'Science Block - Lab 3',
-        schedule:     'Mon, Tue, Thu',
-        totalClasses: 18,
-        attended:     11,
-        absent:       7,
-        history: [
-          CourseSessionHistory(date: DateTime(2026, 2, 2),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 3),  attended: false, reason: 'Sick'),
-          CourseSessionHistory(date: DateTime(2026, 2, 9),  attended: false),
-          CourseSessionHistory(date: DateTime(2026, 2, 10), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 16), attended: false, reason: 'Personal'),
-          CourseSessionHistory(date: DateTime(2026, 2, 17), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 23), attended: false),
-          CourseSessionHistory(date: DateTime(2026, 2, 24), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 3, 2),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 3, 3),  attended: false),
-        ],
-      ),
-      CourseAttendanceModel(
-        id:           'c3',
-        courseCode:   'HIS 101',
-        courseName:   'History',
-        instructor:   'Dr. Acheampong',
-        room:         'Block C - Room 5',
-        schedule:     'Tue, Thu',
-        totalClasses: 14,
-        attended:     14,
-        absent:       0,
-        history: [
-          CourseSessionHistory(date: DateTime(2026, 2, 3),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 5),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 10), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 12), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 17), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 19), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 24), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 26), attended: true),
-        ],
-      ),
-      CourseAttendanceModel(
-        id:           'c4',
-        courseCode:   'ENG 102',
-        courseName:   'English Composition',
-        instructor:   'Mrs. Darko',
-        room:         'Block B - Room 7',
-        schedule:     'Mon, Wed, Fri',
-        totalClasses: 20,
-        attended:     13,
-        absent:       7,
-        history: [
-          CourseSessionHistory(date: DateTime(2026, 2, 2),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 5),  attended: false),
-          CourseSessionHistory(date: DateTime(2026, 2, 9),  attended: false, reason: 'Sick'),
-          CourseSessionHistory(date: DateTime(2026, 2, 12), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 16), attended: false),
-          CourseSessionHistory(date: DateTime(2026, 2, 19), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 23), attended: false, reason: 'Personal'),
-          CourseSessionHistory(date: DateTime(2026, 2, 26), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 3, 2),  attended: false),
-          CourseSessionHistory(date: DateTime(2026, 3, 5),  attended: true),
-        ],
-      ),
-      CourseAttendanceModel(
-        id:           'c5',
-        courseCode:   'CS 301',
-        courseName:   'Data Structures',
-        instructor:   'Dr. Boateng',
-        room:         'ICT Block - Lab 1',
-        schedule:     'Tue, Fri',
-        totalClasses: 16,
-        attended:     15,
-        absent:       1,
-        history: [
-          CourseSessionHistory(date: DateTime(2026, 2, 3),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 6),  attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 10), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 13), attended: false, reason: 'Sick'),
-          CourseSessionHistory(date: DateTime(2026, 2, 17), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 20), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 24), attended: true),
-          CourseSessionHistory(date: DateTime(2026, 2, 27), attended: true),
-        ],
-      ),
-    ];
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/student/$studentId'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final records = (body['records'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      // Group records by courseCode
+      final Map<String, List<Map<String, dynamic>>> byCode = {};
+      for (final r in records) {
+        final sess = r['sessionId'];
+        final code =
+            (sess is Map ? sess['courseCode'] : null) as String? ??
+            r['courseCode'] as String? ??
+            '';
+        if (code.isEmpty) continue;
+        byCode.putIfAbsent(code, () => []).add(r);
+      }
+
+      return byCode.entries.map((e) {
+        final code = e.key;
+        final recs = e.value;
+        final first = recs.first;
+        final sess = first['sessionId'] as Map<String, dynamic>? ?? {};
+        final name = sess['courseName'] as String? ?? code;
+
+        // Build per-session history — one entry per attendance record
+        final history = recs.map((r) {
+          final checkedIn =
+              DateTime.tryParse(r['checkedInAt'] as String? ?? '') ??
+              DateTime.now();
+          final status = r['status'] as String? ?? 'present';
+          return CourseSessionHistory(
+            date: checkedIn,
+            attended: status == 'present',
+          );
+        }).toList()..sort((a, b) => b.date.compareTo(a.date)); // newest first
+
+        final attended = recs
+            .where((r) => (r['status'] as String? ?? '') == 'present')
+            .length;
+        final total = recs.length;
+        final absent = total - attended;
+
+        return CourseAttendanceModel(
+          id: code,
+          courseCode: code,
+          courseName: name,
+          instructor: '',
+          room: '',
+          schedule: '',
+          totalClasses: total,
+          attended: attended,
+          absent: absent,
+          history: history,
+        );
+      }).toList()..sort((a, b) => a.attendanceRate.compareTo(b.attendanceRate));
+    } catch (_) {
+      return [];
+    }
   }
 
-  // ── Sort by most absences (worst first) ──
+  // ── Sort by most absences (worst first) ──────────────────────────
   List<CourseAttendanceModel> sortByMostAbsences(
-      List<CourseAttendanceModel> courses) {
+    List<CourseAttendanceModel> courses,
+  ) {
     final sorted = [...courses];
     sorted.sort((a, b) => a.attendanceRate.compareTo(b.attendanceRate));
     return sorted;
