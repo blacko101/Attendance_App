@@ -54,6 +54,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ── Indexes ───────────────────────────────────────────────────────
 userSchema.index(
   { indexNumber: 1 },
   { unique: true, sparse: true, background: true, name: "idx_user_indexNumber" }
@@ -67,6 +68,7 @@ userSchema.index(
   { background: true, name: "idx_user_role" }
 );
 
+// ── Serialisation safety ──────────────────────────────────────────
 userSchema.set("toJSON", {
   transform: (doc, ret) => {
     delete ret.password;
