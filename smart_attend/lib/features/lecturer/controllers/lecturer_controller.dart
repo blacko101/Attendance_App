@@ -6,174 +6,239 @@ import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/features/lecturer/models/lecturer_model.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
 
-// ─────────────────────────────────────────────────────────────────
-//  LecturerController
-//
-//  KEY CHANGES from the old version:
-//
-//  1. startSession() now calls POST /api/attendance/sessions.
-//     Old code generated a fake local sessionId
-//     ('sess_${DateTime.now().millisecondsSinceEpoch}') and computed
-//     its own HMAC signature. That signature would never match what
-//     the backend expected because:
-//       a) The session didn't exist in MongoDB.
-//       b) The backend signs using the real MongoDB _id, not a
-//          client-generated string.
-//     Result: every student check-in would fail HMAC verification.
-//
-//  2. generateQrData() no longer computes signatures.
-//     The QR data is now built directly from the qrPayload returned
-//     by the backend — which contains the server-generated HMAC.
-//     The client encodes it as JSON but does NOT alter the signature.
-//
-//  3. refreshCodes() only refreshes the 6-digit code.
-//     The QR payload is FIXED for the session lifetime because the
-//     HMAC binds: sessionId + courseCode + expiresAt.  Changing any
-//     of these would produce a QR that fails verification.  The
-//     backend's expiresAt is the authoritative expiry — there is no
-//     "rolling window" on the QR.  The UI timer is cosmetic.
-//     The 6-digit code (backup entry method) is safe to refresh
-//     because it's not cryptographically bound to a server-side
-//     value in this version.
-// ─────────────────────────────────────────────────────────────────
 class LecturerController {
-  static const int refreshInPerson = 20; // seconds — 6-digit code refresh
+  static const int refreshInPerson = 20;
   static const int refreshOnline = 20;
 
   // ── FETCH LECTURER PROFILE ────────────────────────────────────────
-  // TODO: GET /api/auth/me — use the authenticated user's profile
+  // GET /api/auth/me — returns the authenticated user's own record.
   Future<LecturerModel> fetchProfile(String lecturerId) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return const LecturerModel(
-      id: 'lec_001',
-      fullName: 'Kwame Asante',
-      email: 'k.asante@university.edu.gh',
-      staffId: 'STF/2018/0012',
-      department: 'Computer Science & Engineering',
-      role: 'lecturer',
-      courseIds: ['c1', 'c2', 'c3'],
+    final session = await SessionService.getSession();
+    if (session == null) throw Exception('Not authenticated.');
+
+    final response = await http
+        .get(
+          Uri.parse('${AppConfig.authUrl}/me'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final u = body['user'] as Map<String, dynamic>;
+      return LecturerModel(
+        id: u['_id'] as String? ?? '',
+        fullName: u['fullName'] as String? ?? '',
+        email: u['email'] as String? ?? '',
+        staffId: u['staffId'] as String? ?? '',
+        department: u['department'] as String? ?? '',
+        role: u['role'] as String? ?? 'lecturer',
+        courseIds: [], // courses fetched separately
+      );
+    }
+
+    // Fallback — build from saved session so the UI still works offline
+    return LecturerModel(
+      id: session.id,
+      fullName: session.fullName,
+      email: session.email,
+      staffId: session.staffId ?? '',
+      department: session.department ?? '',
+      role: session.role,
+      courseIds: [],
     );
   }
 
   // ── FETCH TODAY'S STATS ───────────────────────────────────────────
-  // TODO: GET /api/attendance/sessions?isActive=false (count today's)
+  // GET /api/attendance/sessions?isActive=false — counts today's
+  // sessions that belong to this lecturer.
   Future<Map<String, int>> fetchTodayStats(String lecturerId) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return {
-      'scheduled': 3,
-      'attended': 2,
-      'missed': 1,
-      'inPerson': 2,
-      'online': 1,
-    };
+    final session = await SessionService.getSession();
+    if (session == null) return _emptyStats();
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/sessions'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return _emptyStats();
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final sessions = (body['sessions'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      // Filter to today only
+      final today = DateTime.now();
+      final todaySess = sessions.where((s) {
+        final created = DateTime.tryParse(s['createdAt'] as String? ?? '');
+        if (created == null) return false;
+        return created.year == today.year &&
+            created.month == today.month &&
+            created.day == today.day;
+      }).toList();
+
+      final held = todaySess.where((s) => s['isActive'] == false).length;
+      final active = todaySess.where((s) => s['isActive'] == true).length;
+      final inPerson = todaySess.where((s) => s['type'] == 'inPerson').length;
+      final online = todaySess.where((s) => s['type'] == 'online').length;
+
+      return {
+        'scheduled': todaySess.length,
+        'attended': held,
+        'missed': 0, // backend doesn't track "missed" yet
+        'inPerson': inPerson,
+        'online': online,
+        'active': active,
+      };
+    } catch (_) {
+      return _emptyStats();
+    }
   }
 
+  Map<String, int> _emptyStats() => {
+    'scheduled': 0,
+    'attended': 0,
+    'missed': 0,
+    'inPerson': 0,
+    'online': 0,
+    'active': 0,
+  };
+
   // ── FETCH ASSIGNED COURSES ────────────────────────────────────────
-  // TODO: GET /api/lecturers/:id/courses
+  // Derived from the lecturer's own past sessions — groups unique
+  // course codes so the lecturer can start a new session for any
+  // course they have taught.
+  //
+  // GET /api/attendance/sessions (all own sessions, deduplicated by courseCode)
   Future<List<LecturerCourseModel>> fetchCourses(String lecturerId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return [
-      const LecturerCourseModel(
-        id: 'c1',
-        courseCode: 'CS 301',
-        courseName: 'Data Structures & Algorithms',
-        department: 'Computer Science',
-        totalStudents: 45,
-        weekdays: [2, 5],
-        schedule: 'Tue, Fri',
-        room: 'ICT Block - Lab 1',
-        startTime: '10:00 AM',
-        endTime: '11:30 AM',
-      ),
-      const LecturerCourseModel(
-        id: 'c2',
-        courseCode: 'CS 201',
-        courseName: 'Object Oriented Programming',
-        department: 'Computer Science',
-        totalStudents: 60,
-        weekdays: [1, 3],
-        schedule: 'Mon, Wed',
-        room: 'ICT Block - Room 3',
-        startTime: '12:00 PM',
-        endTime: '1:30 PM',
-      ),
-      const LecturerCourseModel(
-        id: 'c3',
-        courseCode: 'CS 401',
-        courseName: 'Software Engineering',
-        department: 'Computer Science',
-        totalStudents: 38,
-        weekdays: [3, 5],
-        schedule: 'Wed, Fri',
-        room: 'Block A - Room 7',
-        startTime: '2:00 PM',
-        endTime: '3:30 PM',
-      ),
-    ];
+    final session = await SessionService.getSession();
+    if (session == null) return [];
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/sessions?limit=100'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final sessions = (body['sessions'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      // Deduplicate by courseCode — keep the most recent entry per code
+      final Map<String, Map<String, dynamic>> byCode = {};
+      for (final s in sessions) {
+        final code = s['courseCode'] as String? ?? '';
+        if (code.isNotEmpty && !byCode.containsKey(code)) {
+          byCode[code] = s;
+        }
+      }
+
+      return byCode.entries.map((e) {
+        final s = e.value;
+        return LecturerCourseModel(
+          id: s['_id'] as String? ?? e.key,
+          courseCode: s['courseCode'] as String? ?? '',
+          courseName: s['courseName'] as String? ?? '',
+          department: session.department ?? '',
+          totalStudents: 0, // enrollment count not yet in backend
+          weekdays: [],
+          schedule: '',
+          room: '',
+          startTime: '',
+          endTime: '',
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   // ── FETCH WEEKLY SCHEDULE ─────────────────────────────────────────
-  // TODO: GET /api/attendance/sessions (own sessions by lecturerId)
+  // GET /api/attendance/sessions — returns the lecturer's own sessions
+  // for the current week, mapped to WeeklySessionModel.
   Future<List<WeeklySessionModel>> fetchWeeklySchedule(
     String lecturerId,
   ) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    return [
-      WeeklySessionModel(
-        id: 'ws1',
-        courseCode: 'CS 301',
-        courseName: 'Data Structures & Algorithms',
-        room: 'ICT Block - Lab 1',
-        date: monday.add(const Duration(days: 1)),
-        startTime: '10:00 AM',
-        endTime: '11:30 AM',
-        status: SessionStatus.held,
-        studentsAttended: 40,
-        totalStudents: 45,
-      ),
-      WeeklySessionModel(
-        id: 'ws2',
-        courseCode: 'CS 201',
-        courseName: 'Object Oriented Programming',
-        room: 'ICT Block - Room 3',
-        date: monday,
-        startTime: '12:00 PM',
-        endTime: '1:30 PM',
-        status: SessionStatus.held,
-        studentsAttended: 55,
-        totalStudents: 60,
-      ),
-      WeeklySessionModel(
-        id: 'ws3',
-        courseCode: 'CS 401',
-        courseName: 'Software Engineering',
-        room: 'Block A - Room 7',
-        date: monday.add(const Duration(days: 2)),
-        startTime: '2:00 PM',
-        endTime: '3:30 PM',
-        status: SessionStatus.notHeld,
-        notHeldReason: 'Lecturer indisposed',
-        totalStudents: 38,
-      ),
-      WeeklySessionModel(
-        id: 'ws4',
-        courseCode: 'CS 301',
-        courseName: 'Data Structures & Algorithms',
-        room: 'ICT Block - Lab 1',
-        date: monday.add(const Duration(days: 4)),
-        startTime: '10:00 AM',
-        endTime: '11:30 AM',
-        status: SessionStatus.upcoming,
-        totalStudents: 45,
-      ),
-    ];
+    final session = await SessionService.getSession();
+    if (session == null) return [];
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/sessions?limit=50'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final sessions = (body['sessions'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      // Filter to current week
+      final now = DateTime.now();
+      final monday = now.subtract(Duration(days: now.weekday - 1));
+      final sunday = monday.add(const Duration(days: 6));
+
+      final weekSessions = sessions.where((s) {
+        final created = DateTime.tryParse(s['createdAt'] as String? ?? '');
+        if (created == null) return false;
+        final d = DateTime(created.year, created.month, created.day);
+        return !d.isBefore(DateTime(monday.year, monday.month, monday.day)) &&
+            !d.isAfter(DateTime(sunday.year, sunday.month, sunday.day));
+      }).toList();
+
+      return weekSessions.map((s) {
+        final isActive = s['isActive'] as bool? ?? false;
+        final expiresAt = DateTime.tryParse(s['expiresAt'] as String? ?? '');
+        final createdAt =
+            DateTime.tryParse(s['createdAt'] as String? ?? '') ?? now;
+        final expired = expiresAt != null && expiresAt.isBefore(now);
+
+        SessionStatus status;
+        if (isActive && !expired) {
+          status = SessionStatus.active;
+        } else if (!isActive) {
+          status = SessionStatus.held;
+        } else {
+          // isActive=true but expired — ended by timer, not manually
+          status = SessionStatus.held;
+        }
+
+        return WeeklySessionModel(
+          id: s['_id'] as String? ?? '',
+          courseCode: s['courseCode'] as String? ?? '',
+          courseName: s['courseName'] as String? ?? '',
+          room: '',
+          date: createdAt,
+          startTime: _fmtTime(createdAt),
+          endTime: expiresAt != null ? _fmtTime(expiresAt) : '',
+          status: status,
+          totalStudents: 0,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  String _fmtTime(DateTime dt) {
+    final h = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final m = dt.minute.toString().padLeft(2, '0');
+    final p = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$h:$m $p';
   }
 
   // ── GET LOCATION ──────────────────────────────────────────────────
   Future<Position?> getCurrentPosition() async {
-    // Check if location services are enabled at all on the device.
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return null;
 
@@ -185,19 +250,14 @@ class LecturerController {
         perm == LocationPermission.deniedForever)
       return null;
 
-    // Try with medium accuracy first (uses WiFi/cell towers — fast, works indoors).
-    // Falls back to last known position if even that times out.
     try {
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium, // fast, works indoors & outdoors
-          timeLimit: Duration(seconds: 20), // generous timeout for real devices
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 20),
         ),
       );
     } catch (_) {
-      // Timed out — try the last known position as a fallback.
-      // This is acceptable for attendance since the lecturer is
-      // physically present; exact precision isn't critical.
       try {
         final last = await Geolocator.getLastKnownPosition();
         if (last != null) return last;
@@ -207,37 +267,27 @@ class LecturerController {
   }
 
   // ── GENERATE 6-DIGIT CODE ─────────────────────────────────────────
-  // The 6-digit code is a backup entry method (not cryptographically
-  // verified by the backend in this version). It is safe to generate
-  // locally and refresh on a timer.
   String generateSixDigitCode() {
     final rng = Random.secure();
     return (100000 + rng.nextInt(900000)).toString();
   }
 
   // ── START AN ATTENDANCE SESSION ───────────────────────────────────
-  // CHANGED: now calls POST /api/attendance/sessions and uses the
-  // server-returned sessionId and HMAC signature to build the QR.
-  //
-  // Returns null on any failure (GPS unavailable, network error,
-  // server error) so the UI can show a user-friendly message.
+  // POST /api/attendance/sessions
   Future<ActiveSessionModel?> startSession({
     required LecturerCourseModel course,
     required AttendanceType type,
     required int durationSeconds,
   }) async {
-    // ── 1. Get GPS if in-person ──────────────────────────────────
     Position? pos;
     if (type == AttendanceType.inPerson) {
       pos = await getCurrentPosition();
-      if (pos == null) return null; // GPS unavailable — caller shows error
+      if (pos == null) return null;
     }
 
-    // ── 2. Get auth token ────────────────────────────────────────
     final session = await SessionService.getSession();
     if (session == null) return null;
 
-    // ── 3. Call the backend ──────────────────────────────────────
     try {
       final response = await http
           .post(
@@ -251,8 +301,6 @@ class LecturerController {
               'courseName': course.courseName,
               'type': type == AttendanceType.inPerson ? 'inPerson' : 'online',
               'durationSeconds': durationSeconds,
-              // Use == null check (not !value) so a GPS coordinate of
-              // exactly 0 (equator/prime meridian) is sent correctly.
               if (pos != null) 'lecturerLat': pos.latitude,
               if (pos != null) 'lecturerLng': pos.longitude,
             }),
@@ -262,33 +310,19 @@ class LecturerController {
       if (response.statusCode != 201) return null;
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-
-      // ── 4. Extract the server-generated session data ─────────
-      // The backend returns:
-      // {
-      //   sessionId: "...",
-      //   expiresAt: "2026-...",
-      //   qrPayload: { sessionId, courseCode, expiresAt (ms), signature }
-      // }
-      final serverSessionId = body['sessionId'] as String;
-      final qrPayloadMap = body['qrPayload'] as Map<String, dynamic>;
-
-      // ── 5. Build the QR data string ───────────────────────────
-      // Encode the server's qrPayload as JSON, adding courseName for
-      // display on the student side. courseName is NOT part of the
-      // HMAC-signed data so adding it here is safe.
+      final sessionId = body['sessionId'] as String;
+      final qrPayload = body['qrPayload'] as Map<String, dynamic>;
       final qrData = jsonEncode({
-        ...qrPayloadMap,
+        ...qrPayload,
         'courseName': course.courseName,
       });
 
-      // ── 6. Build the active session model ────────────────────
       return ActiveSessionModel(
-        sessionId: serverSessionId, // real MongoDB _id
+        sessionId: sessionId,
         courseCode: course.courseCode,
         courseName: course.courseName,
         type: type,
-        qrData: qrData, // JSON with server signature
+        qrData: qrData,
         sixDigitCode: generateSixDigitCode(),
         totalSeconds: durationSeconds,
         secondsLeft: durationSeconds,
@@ -303,10 +337,7 @@ class LecturerController {
   }
 
   // ── END SESSION ON BACKEND ────────────────────────────────────────
-  // CHANGED: now calls PATCH /api/attendance/sessions/:id/end.
-  // Old code only cleared local state — the session stayed isActive:true
-  // in MongoDB indefinitely, allowing check-ins after the lecturer
-  // pressed "End Session".
+  // PATCH /api/attendance/sessions/:id/end
   Future<bool> endSessionOnBackend(String sessionId) async {
     final session = await SessionService.getSession();
     if (session == null) return false;
@@ -321,7 +352,6 @@ class LecturerController {
             },
           )
           .timeout(const Duration(seconds: 10));
-
       return response.statusCode == 200;
     } catch (_) {
       return false;
@@ -329,13 +359,7 @@ class LecturerController {
   }
 
   // ── REFRESH 6-DIGIT CODE ONLY ─────────────────────────────────────
-  // The QR payload is FIXED for the session lifetime (the HMAC binds
-  // sessionId + courseCode + expiresAt — none of which change).
-  // Only the 6-digit backup code is refreshed on the timer.
   ActiveSessionModel refreshCodes(ActiveSessionModel session) {
-    return session.copyWith(
-      sixDigitCode: generateSixDigitCode(),
-      // qrData is intentionally NOT regenerated here
-    );
+    return session.copyWith(sixDigitCode: generateSixDigitCode());
   }
 }
