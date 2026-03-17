@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 
-// ── Available departments for dean access page ─
+// ── Department — used in the dean login dropdown ───────────────────
+// email is the dean account email for this department.
+// The dean login screen posts email + password to /api/auth/login.
 class DepartmentModel {
   final String id;
   final String name;
+  final String email; // dean account email for this department
   final String faculty;
 
   const DepartmentModel({
     required this.id,
     required this.name,
+    required this.email,
     required this.faculty,
   });
 }
 
-// ── Dean profile ───────────────────────────────
+// ── Dean profile ───────────────────────────────────────────────────
 class DeanModel {
   final String id;
   final String fullName;
@@ -45,16 +49,16 @@ class DeanModel {
       fullName.isNotEmpty ? fullName.split(' ').first : 'Dean';
 }
 
-// ── Department overview stats ──────────────────
+// ── Department overview stats ──────────────────────────────────────
 class DepartmentStatsModel {
-  final int    totalStudents;
-  final int    totalLecturers;
-  final int    totalCourses;
-  final double overallAttendanceRate;  // 0–100
-  final double classHoldingRate;       // 0–100
-  final int    classesScheduled;
-  final int    classesHeld;
-  final int    classesNotHeld;
+  final int totalStudents;
+  final int totalLecturers;
+  final int totalCourses;
+  final double overallAttendanceRate;
+  final double classHoldingRate;
+  final int classesScheduled;
+  final int classesHeld;
+  final int classesNotHeld;
 
   const DepartmentStatsModel({
     required this.totalStudents,
@@ -68,16 +72,16 @@ class DepartmentStatsModel {
   });
 }
 
-// ── Per-course analytics ───────────────────────
+// ── Per-course analytics ───────────────────────────────────────────
 class CourseAnalyticsModel {
   final String id;
   final String courseCode;
   final String courseName;
   final String lecturerName;
-  final int    totalStudents;
-  final int    classesHeld;
-  final int    classesScheduled;
-  final double attendanceRate;   // avg across students 0–100
+  final int totalStudents;
+  final int classesHeld;
+  final int classesScheduled;
+  final double attendanceRate;
 
   const CourseAnalyticsModel({
     required this.id,
@@ -91,12 +95,10 @@ class CourseAnalyticsModel {
   });
 
   double get holdingRate =>
-      classesScheduled == 0
-          ? 0
-          : (classesHeld / classesScheduled) * 100;
+      classesScheduled == 0 ? 0 : (classesHeld / classesScheduled) * 100;
 
   bool get isLowAttendance => attendanceRate < 75;
-  bool get isLowHolding    => holdingRate    < 70;
+  bool get isLowHolding => holdingRate < 70;
 
   Color get attendanceColor {
     if (attendanceRate >= 75) return const Color(0xFF4CAF50);
@@ -111,7 +113,7 @@ class CourseAnalyticsModel {
   }
 }
 
-// ── Student with low attendance ────────────────
+// ── Student with low attendance ────────────────────────────────────
 class LowAttendanceStudentModel {
   final String id;
   final String fullName;
@@ -119,7 +121,7 @@ class LowAttendanceStudentModel {
   final String programme;
   final String level;
   final double attendanceRate;
-  final int    coursesAtRisk;
+  final int coursesAtRisk;
 
   const LowAttendanceStudentModel({
     required this.id,
@@ -158,14 +160,14 @@ class LowAttendanceStudentModel {
   }
 }
 
-// ── Lecturer class-holding performance ─────────
+// ── Lecturer class-holding performance ─────────────────────────────
 class LecturerPerformanceModel {
   final String id;
   final String fullName;
   final String staffId;
-  final int    coursesAssigned;
-  final int    classesScheduled;
-  final int    classesHeld;
+  final int coursesAssigned;
+  final int classesScheduled;
+  final int classesHeld;
   final double holdingRate;
 
   const LecturerPerformanceModel({
