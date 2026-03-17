@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/features/lecturer/controllers/lecturer_controller.dart';
 import 'package:smart_attend/features/lecturer/models/lecturer_model.dart';
 import 'package:smart_attend/features/auth/views/mobile/login_screen.dart';
@@ -83,10 +86,10 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
 
   // ── START SESSION ──────────────────────────────────────────────────────
   Future<void> _startSession(
-      LecturerCourseModel course,
-      AttendanceType type,
-      int durationSeconds,
-      ) async {
+    LecturerCourseModel course,
+    AttendanceType type,
+    int durationSeconds,
+  ) async {
     final session = await _ctrl.startSession(
       course: course,
       type: type,
@@ -204,7 +207,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   LoginScreen.id,
-                      (_) => false,
+                  (_) => false,
                 );
               }
             },
@@ -366,7 +369,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                     ),
                     const SizedBox(height: 14),
                     ..._courses.map(
-                          (c) => _CourseAttendanceCard(
+                      (c) => _CourseAttendanceCard(
                         course: c,
                         isActive: _activeSession?.courseCode == c.courseCode,
                         onStart: _activeSession == null
@@ -421,12 +424,12 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
         children: stats
             .map(
               (s) => Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: _StatCard(def: s),
-            ),
-          ),
-        )
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _StatCard(def: s),
+                ),
+              ),
+            )
             .toList(),
       );
     }
@@ -506,6 +509,220 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
   // ══════════════════════════════════════════════
   //  PAGE 3 — PROFILE
   // ══════════════════════════════════════════════
+  void _handleChangePassword() {
+    final currentPwCtrl = TextEditingController();
+    final newPwCtrl = TextEditingController();
+    final confirmPwCtrl = TextEditingController();
+    bool obscure1 = true, obscure2 = true, obscure3 = true;
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: _kWhite,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Text(
+                  'Change Password',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _LecturerPwField(
+                  label: 'Current Password',
+                  controller: currentPwCtrl,
+                  obscure: obscure1,
+                  onToggle: () => setSheetState(() => obscure1 = !obscure1),
+                ),
+                const SizedBox(height: 14),
+                _LecturerPwField(
+                  label: 'New Password',
+                  controller: newPwCtrl,
+                  obscure: obscure2,
+                  onToggle: () => setSheetState(() => obscure2 = !obscure2),
+                ),
+                const SizedBox(height: 14),
+                _LecturerPwField(
+                  label: 'Confirm New Password',
+                  controller: confirmPwCtrl,
+                  obscure: obscure3,
+                  onToggle: () => setSheetState(() => obscure3 = !obscure3),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kCherry,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final current = currentPwCtrl.text.trim();
+                            final newPw = newPwCtrl.text;
+                            final confirm = confirmPwCtrl.text;
+
+                            void showErr(String msg) =>
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      msg,
+                                      style: GoogleFonts.poppins(fontSize: 13),
+                                    ),
+                                    backgroundColor: _kCherry,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    margin: const EdgeInsets.all(16),
+                                  ),
+                                );
+
+                            if (current.isEmpty ||
+                                newPw.isEmpty ||
+                                confirm.isEmpty) {
+                              showErr('Please fill in all fields.');
+                              return;
+                            }
+                            if (newPw.length < 8) {
+                              showErr(
+                                'New password must be at least 8 characters.',
+                              );
+                              return;
+                            }
+                            if (newPw != confirm) {
+                              showErr('New passwords do not match.');
+                              return;
+                            }
+
+                            setSheetState(() => isSubmitting = true);
+                            try {
+                              final session = await SessionService.getSession();
+                              if (session == null) {
+                                Navigator.pop(ctx);
+                                return;
+                              }
+
+                              final response = await http
+                                  .post(
+                                    Uri.parse(
+                                      '${AppConfig.authUrl}/change-password',
+                                    ),
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization':
+                                          'Bearer ${session.token}',
+                                    },
+                                    body: jsonEncode({
+                                      'currentPassword': current,
+                                      'newPassword': newPw,
+                                    }),
+                                  )
+                                  .timeout(const Duration(seconds: 15));
+
+                              if (!ctx.mounted) return;
+                              if (response.statusCode == 200) {
+                                Navigator.pop(ctx);
+                                if (mounted)
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Password updated successfully',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      backgroundColor: _kGreen,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                              } else {
+                                final body =
+                                    jsonDecode(response.body)
+                                        as Map<String, dynamic>;
+                                showErr(
+                                  body['message'] as String? ??
+                                      'Failed to change password.',
+                                );
+                              }
+                            } catch (_) {
+                              if (ctx.mounted)
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Connection error. Check your internet.',
+                                      style: GoogleFonts.poppins(fontSize: 13),
+                                    ),
+                                    backgroundColor: _kCherry,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    margin: const EdgeInsets.all(16),
+                                  ),
+                                );
+                            } finally {
+                              if (ctx.mounted)
+                                setSheetState(() => isSubmitting = false);
+                            }
+                          },
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: _kWhite,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Update Password',
+                            style: GoogleFonts.poppins(
+                              color: _kWhite,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfilePage() {
     final p = _lecturer!;
     return SingleChildScrollView(
@@ -631,6 +848,36 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          // Change Password
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: _kCherry),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.lock_outline_rounded,
+                  color: _kCherry,
+                  size: 18,
+                ),
+                label: Text(
+                  'Change Password',
+                  style: GoogleFonts.poppins(
+                    color: _kCherry,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onPressed: _handleChangePassword,
               ),
             ),
           ),
@@ -1224,7 +1471,7 @@ class _InfoPanel extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             '${session.studentsMarked} / ${session.totalStudents} '
-                'students marked',
+            'students marked',
             style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
           ),
         ],
@@ -1704,7 +1951,7 @@ class _ScheduleCard extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 '${session.studentsAttended} / '
-                    '${session.totalStudents} attended',
+                '${session.totalStudents} attended',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: _kGreen,
@@ -1786,7 +2033,7 @@ class _ScheduleCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               ...reasons.map(
-                    (r) => RadioListTile<String>(
+                (r) => RadioListTile<String>(
                   value: r,
                   groupValue: selectedReason,
                   activeColor: _kCherry,
@@ -1835,13 +2082,13 @@ class _ScheduleCard extends StatelessWidget {
               onPressed: selectedReason == null
                   ? null
                   : () {
-                final reason =
-                selectedReason == 'Other' && otherCtrl.text.isNotEmpty
-                    ? otherCtrl.text
-                    : selectedReason!;
-                Navigator.pop(context);
-                onMarkNotHeld(reason);
-              },
+                      final reason =
+                          selectedReason == 'Other' && otherCtrl.text.isNotEmpty
+                          ? otherCtrl.text
+                          : selectedReason!;
+                      Navigator.pop(context);
+                      onMarkNotHeld(reason);
+                    },
               child: Text(
                 'Confirm',
                 style: GoogleFonts.poppins(
@@ -2019,4 +2266,52 @@ class _PDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Divider(color: Colors.grey.shade100, thickness: 1, height: 1);
+}
+
+class _LecturerPwField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final bool obscure;
+  final VoidCallback onToggle;
+  const _LecturerPwField({
+    required this.label,
+    required this.controller,
+    required this.obscure,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    obscureText: obscure,
+    decoration: InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.poppins(
+        fontSize: 13,
+        color: Colors.grey.shade500,
+      ),
+      filled: true,
+      fillColor: const Color(0xFFEEEEF3),
+      suffixIcon: IconButton(
+        icon: Icon(
+          obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          color: Colors.grey,
+          size: 18,
+        ),
+        onPressed: onToggle,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _kCherry, width: 1.5),
+      ),
+    ),
+  );
 }

@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/features/super_admin/controllers/admin_controller.dart';
 import 'package:smart_attend/features/super_admin/models/admin_model.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
@@ -79,6 +82,211 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     });
   }
 
+  void _handleChangePassword() {
+    final currentPwCtrl = TextEditingController();
+    final newPwCtrl = TextEditingController();
+    final confirmPwCtrl = TextEditingController();
+    bool obscure1 = true, obscure2 = true, obscure3 = true;
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: _kWhite,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Text(
+                  'Change Password',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _AdminPwField(
+                  label: 'Current Password',
+                  controller: currentPwCtrl,
+                  obscure: obscure1,
+                  onToggle: () => setSheetState(() => obscure1 = !obscure1),
+                ),
+                const SizedBox(height: 14),
+                _AdminPwField(
+                  label: 'New Password',
+                  controller: newPwCtrl,
+                  obscure: obscure2,
+                  onToggle: () => setSheetState(() => obscure2 = !obscure2),
+                ),
+                const SizedBox(height: 14),
+                _AdminPwField(
+                  label: 'Confirm New Password',
+                  controller: confirmPwCtrl,
+                  obscure: obscure3,
+                  onToggle: () => setSheetState(() => obscure3 = !obscure3),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kCherry,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final current = currentPwCtrl.text.trim();
+                            final newPw = newPwCtrl.text;
+                            final confirm = confirmPwCtrl.text;
+
+                            void showErr(String msg) =>
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      msg,
+                                      style: GoogleFonts.poppins(fontSize: 13),
+                                    ),
+                                    backgroundColor: _kCherry,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    margin: const EdgeInsets.all(16),
+                                  ),
+                                );
+
+                            if (current.isEmpty ||
+                                newPw.isEmpty ||
+                                confirm.isEmpty) {
+                              showErr('Please fill in all fields.');
+                              return;
+                            }
+                            if (newPw.length < 8) {
+                              showErr(
+                                'New password must be at least 8 characters.',
+                              );
+                              return;
+                            }
+                            if (newPw != confirm) {
+                              showErr('New passwords do not match.');
+                              return;
+                            }
+
+                            setSheetState(() => isSubmitting = true);
+                            try {
+                              final session = await SessionService.getSession();
+                              if (session == null) {
+                                Navigator.pop(ctx);
+                                return;
+                              }
+                              final response = await http
+                                  .post(
+                                    Uri.parse(
+                                      '${AppConfig.authUrl}/change-password',
+                                    ),
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization':
+                                          'Bearer ${session.token}',
+                                    },
+                                    body: jsonEncode({
+                                      'currentPassword': current,
+                                      'newPassword': newPw,
+                                    }),
+                                  )
+                                  .timeout(const Duration(seconds: 15));
+
+                              if (!ctx.mounted) return;
+                              if (response.statusCode == 200) {
+                                Navigator.pop(ctx);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Password updated successfully',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      backgroundColor: _kGreen,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } else {
+                                final body =
+                                    jsonDecode(response.body)
+                                        as Map<String, dynamic>;
+                                showErr(
+                                  body['message'] as String? ??
+                                      'Failed to change password.',
+                                );
+                              }
+                            } catch (_) {
+                              if (ctx.mounted) {
+                                showErr(
+                                  'Connection error. Check your internet.',
+                                );
+                              }
+                            } finally {
+                              if (ctx.mounted) {
+                                setSheetState(() => isSubmitting = false);
+                              }
+                            }
+                          },
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: _kWhite,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Update Password',
+                            style: GoogleFonts.poppins(
+                              color: _kWhite,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _logout() {
     showDialog(
       context: context,
@@ -118,6 +326,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   index: _navIndex,
                   onTap: (i) => setState(() => _navIndex = i),
                   onLogout: _logout,
+                  onChangePassword: _handleChangePassword,
                 ),
                 Expanded(child: _buildPage()),
               ],
@@ -204,6 +413,13 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           subtitle:
               'Full system overview · '
               '${a.totalDepartments} departments',
+          action: MediaQuery.of(context).size.width < 960
+              ? IconButton(
+                  icon: const Icon(Icons.lock_outline_rounded, color: _kCherry),
+                  tooltip: 'Change Password',
+                  onPressed: _handleChangePassword,
+                )
+              : null,
         ),
         Expanded(
           child: RefreshIndicator(
@@ -1002,10 +1218,12 @@ class _SideNav extends StatelessWidget {
   final int index;
   final ValueChanged<int> onTap;
   final VoidCallback onLogout;
+  final VoidCallback onChangePassword;
   const _SideNav({
     required this.index,
     required this.onTap,
     required this.onLogout,
+    required this.onChangePassword,
   });
 
   @override
@@ -1148,9 +1366,32 @@ class _SideNav extends StatelessWidget {
             const Spacer(),
             Divider(color: _kWhite.withValues(alpha: 0.15)),
             GestureDetector(
+              onTap: onChangePassword,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      color: _kWhite.withValues(alpha: 0.7),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Change Password',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: _kWhite.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            GestureDetector(
               onTap: onLogout,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                 child: Row(
                   children: [
                     Icon(
@@ -3491,3 +3732,51 @@ Widget _Chip(String label, bool selected, VoidCallback onTap) =>
         ),
       ),
     );
+
+class _AdminPwField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final bool obscure;
+  final VoidCallback onToggle;
+  const _AdminPwField({
+    required this.label,
+    required this.controller,
+    required this.obscure,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    obscureText: obscure,
+    decoration: InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.poppins(
+        fontSize: 13,
+        color: Colors.grey.shade500,
+      ),
+      filled: true,
+      fillColor: _kBg,
+      suffixIcon: IconButton(
+        icon: Icon(
+          obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          color: Colors.grey,
+          size: 18,
+        ),
+        onPressed: onToggle,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _kCherry, width: 1.5),
+      ),
+    ),
+  );
+}
