@@ -73,15 +73,68 @@ class DeanController {
     }
   }
 
-  // Seeded fallback — matches seed.js dean account exactly.
-  // This ensures the dropdown always has at least one entry
-  // even before the dean has ever logged in.
+  // Seeded fallback — one entry per faculty so the dropdown is never
+  // empty even before any dean accounts are created in the database.
   List<DepartmentModel> _seededDepartments() => [
     const DepartmentModel(
       id: 'dean_set',
       name: 'School of Engineering & Technology',
       email: 'dean.set@central.edu.gh',
-      faculty: 'Engineering & Technology',
+      faculty: 'School of Engineering & Technology',
+    ),
+    const DepartmentModel(
+      id: 'dean_sad',
+      name: 'School of Architecture & Design',
+      email: 'dean.sad@central.edu.gh',
+      faculty: 'School of Architecture & Design',
+    ),
+    const DepartmentModel(
+      id: 'dean_snm',
+      name: 'School of Nursing & Midwifery',
+      email: 'dean.snm@central.edu.gh',
+      faculty: 'School of Nursing & Midwifery',
+    ),
+    const DepartmentModel(
+      id: 'dean_fass',
+      name: 'Faculty of Arts & Social Sciences',
+      email: 'dean.fass@central.edu.gh',
+      faculty: 'Faculty of Arts & Social Sciences',
+    ),
+    const DepartmentModel(
+      id: 'dean_cbs',
+      name: 'Central Business School',
+      email: 'dean.cbs@central.edu.gh',
+      faculty: 'Central Business School',
+    ),
+    const DepartmentModel(
+      id: 'dean_sms',
+      name: 'School of Medical Sciences',
+      email: 'dean.sms@central.edu.gh',
+      faculty: 'School of Medical Sciences',
+    ),
+    const DepartmentModel(
+      id: 'dean_sop',
+      name: 'School of Pharmacy',
+      email: 'dean.sop@central.edu.gh',
+      faculty: 'School of Pharmacy',
+    ),
+    const DepartmentModel(
+      id: 'dean_law',
+      name: 'Central Law School',
+      email: 'dean.law@central.edu.gh',
+      faculty: 'Central Law School',
+    ),
+    const DepartmentModel(
+      id: 'dean_sgsr',
+      name: 'School of Graduate Studies & Research',
+      email: 'dean.sgsr@central.edu.gh',
+      faculty: 'School of Graduate Studies & Research',
+    ),
+    const DepartmentModel(
+      id: 'dean_cdpe',
+      name: 'Centre for Distance & Professional Education',
+      email: 'dean.cdpe@central.edu.gh',
+      faculty: 'Centre for Distance & Professional Education',
     ),
   ];
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:smart_attend/core/config/app_config.dart';
+import 'package:smart_attend/core/config/school_data.dart';
 import 'package:smart_attend/features/super_admin/controllers/admin_controller.dart';
 import 'package:smart_attend/features/super_admin/models/admin_model.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
@@ -1737,6 +1738,16 @@ class _UserCard extends StatelessWidget {
           ),
           onSelected: (v) async {
             switch (v) {
+              case 'edit':
+                showDialog(
+                  context: context,
+                  builder: (_) => _EditUserDialog(
+                    ctrl: ctrl,
+                    user: user,
+                    onUpdated: onUpdated,
+                  ),
+                );
+                break;
               case 'activate':
                 onStatusChange(user.id, UserStatus.active);
                 break;
@@ -1749,6 +1760,19 @@ class _UserCard extends StatelessWidget {
             }
           },
           itemBuilder: (_) => [
+            PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_outlined, color: _kBlue, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Edit Details',
+                    style: GoogleFonts.poppins(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
             if (user.status != UserStatus.active)
               PopupMenuItem(
                 value: 'activate',
@@ -1967,10 +1991,21 @@ class _CourseCard extends StatelessWidget {
   );
 
   void _showAssignDialog(BuildContext context) {
+    // Only show lecturers whose departments include this course's faculty
+    final eligible = lecturers
+        .where(
+          (l) =>
+              l.departments.contains(course.departmentName) ||
+              l.department == course.departmentName,
+        )
+        .toList();
+    // Fall back to all lecturers if none matched (e.g. legacy data)
+    final pool = eligible.isNotEmpty ? eligible : lecturers;
+
     ManagedUserModel? selected = course.hasLecturer
-        ? lecturers.firstWhere(
+        ? pool.firstWhere(
             (l) => l.id == course.assignedLecturerId,
-            orElse: () => lecturers.first,
+            orElse: () => pool.isNotEmpty ? pool.first : lecturers.first,
           )
         : null;
 
@@ -1988,37 +2023,61 @@ class _CourseCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          content: DropdownButtonFormField<ManagedUserModel>(
-            value: selected,
-            isExpanded: true,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: _kBg,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 14,
-              ),
-            ),
-            hint: Text(
-              'Select a lecturer',
-              style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
-            ),
-            items: lecturers
-                .map(
-                  (l) => DropdownMenuItem(
-                    value: l,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (eligible.isEmpty && lecturers.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _kOrange.withValues(alpha: 0.4),
+                      ),
+                    ),
                     child: Text(
-                      l.fullName,
-                      style: GoogleFonts.poppins(fontSize: 13),
+                      'No lecturers are assigned to "${course.departmentName}". '
+                      'Showing all lecturers.',
+                      style: GoogleFonts.poppins(fontSize: 11, color: _kOrange),
                     ),
                   ),
-                )
-                .toList(),
-            onChanged: (l) => setD(() => selected = l),
+                ),
+              DropdownButtonFormField<ManagedUserModel>(
+                value: selected,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: _kBg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
+                ),
+                hint: Text(
+                  'Select a lecturer',
+                  style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
+                ),
+                items: pool
+                    .map(
+                      (l) => DropdownMenuItem(
+                        value: l,
+                        child: Text(
+                          l.fullName,
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (l) => setD(() => selected = l),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -2308,32 +2367,22 @@ class _AddUserDialog extends StatefulWidget {
   State<_AddUserDialog> createState() => _AddUserDialogState();
 }
 
-const List<String> _kProgrammes = [
-  'BSc. Computer Science',
-  'BSc. Information Technology',
-  'BSc. Computer Engineering',
-  'BSc. Business Administration',
-  'BSc. Accounting',
-  'BSc. Banking & Finance',
-  'BSc. Marketing',
-  'BSc. Human Resource Management',
-  'BSc. Procurement & Supply Chain',
-  'BSc. Economics',
-  'BA. English',
-  'BA. Communication Studies',
-  'BA. Theology & Mission Studies',
-  'LLB. Law',
-];
-
 class _AddUserDialogState extends State<_AddUserDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _idCtrl = TextEditingController();
-  final _deptCtrl = TextEditingController();
   UserRole _role = UserRole.student;
+
+  // ── Student fields ──────────────────────────
+  String? _selectedFaculty;
   String? _programme;
   String _level = '100';
+
+  // ── Lecturer fields ─────────────────────────
+  // Multi-select: list of faculty names chosen as departments
+  final Set<String> _selectedDepts = {};
+
   bool _loading = false;
 
   @override
@@ -2341,7 +2390,6 @@ class _AddUserDialogState extends State<_AddUserDialog> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _idCtrl.dispose();
-    _deptCtrl.dispose();
     super.dispose();
   }
 
@@ -2353,7 +2401,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
       style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
     ),
     content: SizedBox(
-      width: 400,
+      width: 420,
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -2426,8 +2474,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'The user will be prompted '
-                            'to change this on first login.',
+                            'The user will be prompted to change this on first login.',
                             style: GoogleFonts.poppins(
                               fontSize: 10,
                               color: Color(0xFF1565C0),
@@ -2450,7 +2497,12 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                         child: Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: GestureDetector(
-                            onTap: () => setState(() => _role = r),
+                            onTap: () => setState(() {
+                              _role = r;
+                              _selectedDepts.clear();
+                              _selectedFaculty = null;
+                              _programme = null;
+                            }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
@@ -2492,19 +2544,17 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                 hint: 'user@central.edu.gh',
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Email is required';
-                  }
-                  if (!v.trim().toLowerCase().endsWith('@central.edu.gh')) {
-                    return 'Email must end in '
-                        '@central.edu.gh';
-                  }
+                  if (v == null || v.trim().isEmpty) return 'Email is required';
+                  if (!v.trim().toLowerCase().endsWith('@central.edu.gh'))
+                    return 'Email must end in @central.edu.gh';
                   return null;
                 },
               ),
               const SizedBox(height: 10),
 
-              // ── Student fields ─────────────────────
+              // ═══════════════════════════════════════
+              //  STUDENT FIELDS
+              // ═══════════════════════════════════════
               if (_role == UserRole.student) ...[
                 _tf(
                   'Index Number',
@@ -2515,30 +2565,69 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                       : null,
                 ),
                 const SizedBox(height: 10),
+
+                // Faculty picker → filters programmes
                 DropdownButtonFormField<String>(
-                  value: _programme,
+                  value: _selectedFaculty,
                   isExpanded: true,
-                  decoration: _inputDec('Programme'),
+                  decoration: _inputDec('School / Faculty'),
                   hint: Text(
-                    'Select programme',
+                    'Select faculty',
                     style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
                   ),
                   validator: (v) =>
-                      v == null ? 'Please select a programme' : null,
-                  items: _kProgrammes
+                      v == null ? 'Please select a faculty' : null,
+                  items: kFaculties
                       .map(
-                        (p) => DropdownMenuItem(
-                          value: p,
+                        (f) => DropdownMenuItem(
+                          value: f.name,
                           child: Text(
-                            p,
+                            f.name,
                             style: GoogleFonts.poppins(fontSize: 13),
                           ),
                         ),
                       )
                       .toList(),
-                  onChanged: (v) => setState(() => _programme = v),
+                  onChanged: (v) => setState(() {
+                    _selectedFaculty = v;
+                    _programme = null; // reset programme when faculty changes
+                  }),
                 ),
                 const SizedBox(height: 10),
+
+                // Programme picker — filtered by chosen faculty
+                DropdownButtonFormField<String>(
+                  value: _programme,
+                  isExpanded: true,
+                  decoration: _inputDec('Programme'),
+                  hint: Text(
+                    _selectedFaculty == null
+                        ? 'Select a faculty first'
+                        : 'Select programme',
+                    style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
+                  ),
+                  validator: (v) =>
+                      v == null ? 'Please select a programme' : null,
+                  items:
+                      (_selectedFaculty == null
+                              ? <String>[]
+                              : programmesForFaculty(_selectedFaculty!))
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p,
+                              child: Text(
+                                p,
+                                style: GoogleFonts.poppins(fontSize: 13),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: _selectedFaculty == null
+                      ? null
+                      : (v) => setState(() => _programme = v),
+                ),
+                const SizedBox(height: 10),
+
                 DropdownButtonFormField<String>(
                   value: _level,
                   decoration: _inputDec('Level'),
@@ -2556,7 +2645,9 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                   onChanged: (v) => setState(() => _level = v!),
                 ),
 
-                // ── Lecturer fields ────────────────────
+                // ═══════════════════════════════════════
+                //  LECTURER FIELDS
+                // ═══════════════════════════════════════
               ] else ...[
                 _tf(
                   'Staff ID',
@@ -2567,7 +2658,80 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                       : null,
                 ),
                 const SizedBox(height: 10),
-                _tf('Department', _deptCtrl, hint: 'Computer Science'),
+
+                // Department multi-select (checkboxes inside scrollable container)
+                FormField<Set<String>>(
+                  validator: (_) => _selectedDepts.isEmpty
+                      ? 'Select at least one department'
+                      : null,
+                  builder: (field) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Departments',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _kText,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        decoration: BoxDecoration(
+                          color: _kBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: field.hasError
+                                ? Colors.red
+                                : Colors.transparent,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: kFaculties.map((f) {
+                              final checked = _selectedDepts.contains(f.name);
+                              return CheckboxListTile(
+                                dense: true,
+                                activeColor: _kCherry,
+                                value: checked,
+                                title: Text(
+                                  f.name,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: _kText,
+                                  ),
+                                ),
+                                onChanged: (v) {
+                                  setState(() {
+                                    if (v == true) {
+                                      _selectedDepts.add(f.name);
+                                    } else {
+                                      _selectedDepts.remove(f.name);
+                                    }
+                                  });
+                                  field.didChange(_selectedDepts);
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      if (field.hasError)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, left: 4),
+                          child: Text(
+                            field.errorText!,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ],
           ),
@@ -2589,11 +2753,10 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         onPressed: _loading
             ? null
             : () async {
-                if (!_formKey.currentState!.validate()) {
-                  return;
-                }
+                if (!_formKey.currentState!.validate()) return;
                 setState(() => _loading = true);
                 try {
+                  final depts = _selectedDepts.toList();
                   final user = await widget.ctrl.createUser(
                     ManagedUserModel(
                       id: '',
@@ -2609,16 +2772,21 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                           : null,
                       programme: _role == UserRole.student ? _programme : null,
                       level: _role == UserRole.student ? _level : null,
-                      department: _deptCtrl.text.trim().isEmpty
-                          ? null
-                          : _deptCtrl.text.trim(),
+                      faculty: _role == UserRole.student
+                          ? facultyForProgramme(_programme ?? '')
+                          : (_selectedDepts.isNotEmpty
+                                ? _selectedDepts.first
+                                : null),
+                      departments: _role == UserRole.lecturer ? depts : [],
+                      department: _role == UserRole.lecturer && depts.isNotEmpty
+                          ? depts.first
+                          : null,
                       createdAt: DateTime.now(),
                     ),
                   );
                   if (context.mounted) {
                     Navigator.pop(context);
                     widget.onCreated(user);
-                    // Notify admin of the default password
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Row(
@@ -2639,9 +2807,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                                   children: [
                                     TextSpan(
                                       text:
-                                          '${user.fullName}'
-                                          ' created. '
-                                          'Default password: ',
+                                          '${user.fullName} created. Default password: ',
                                     ),
                                     TextSpan(
                                       text: 'Central@123',
@@ -2680,9 +2846,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                     );
                   }
                 } finally {
-                  if (mounted) {
-                    setState(() => _loading = false);
-                  }
+                  if (mounted) setState(() => _loading = false);
                 }
               },
         child: _loading
@@ -2707,6 +2871,356 @@ class _AddUserDialogState extends State<_AddUserDialog> {
 }
 
 // ══════════════════════════════════════════════
+//  EDIT USER DIALOG
+// ══════════════════════════════════════════════
+class _EditUserDialog extends StatefulWidget {
+  final AdminController ctrl;
+  final ManagedUserModel user;
+  final void Function(ManagedUserModel) onUpdated;
+  const _EditUserDialog({
+    required this.ctrl,
+    required this.user,
+    required this.onUpdated,
+  });
+
+  @override
+  State<_EditUserDialog> createState() => _EditUserDialogState();
+}
+
+class _EditUserDialogState extends State<_EditUserDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _idCtrl;
+
+  String? _selectedFaculty;
+  String? _programme;
+  String _level = '100';
+  final Set<String> _selectedDepts = {};
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final u = widget.user;
+    _nameCtrl = TextEditingController(text: u.fullName);
+    _idCtrl = TextEditingController(text: u.staffId ?? u.indexNumber ?? '');
+    _programme = u.programme;
+    _level = u.level ?? '100';
+    _selectedFaculty = u.faculty?.isNotEmpty == true
+        ? u.faculty
+        : (u.programme != null ? facultyForProgramme(u.programme!) : null);
+    if (u.departments.isNotEmpty) {
+      _selectedDepts.addAll(u.departments);
+    } else if (u.department != null) {
+      _selectedDepts.add(u.department!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _idCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isStudent = widget.user.role == UserRole.student;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        'Edit ${widget.user.fullName}',
+        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _tf(
+                  'Full Name',
+                  _nameCtrl,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 10),
+
+                if (isStudent) ...[
+                  _tf(
+                    'Index Number',
+                    _idCtrl,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 10),
+
+                  DropdownButtonFormField<String>(
+                    value: _selectedFaculty,
+                    isExpanded: true,
+                    decoration: _inputDec('School / Faculty'),
+                    hint: Text(
+                      'Select faculty',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: _kSubtext,
+                      ),
+                    ),
+                    validator: (v) => v == null ? 'Required' : null,
+                    items: kFaculties
+                        .map(
+                          (f) => DropdownMenuItem(
+                            value: f.name,
+                            child: Text(
+                              f.name,
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() {
+                      _selectedFaculty = v;
+                      _programme = null;
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+
+                  DropdownButtonFormField<String>(
+                    value: _programme,
+                    isExpanded: true,
+                    decoration: _inputDec('Programme'),
+                    hint: Text(
+                      _selectedFaculty == null
+                          ? 'Select faculty first'
+                          : 'Select programme',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: _kSubtext,
+                      ),
+                    ),
+                    validator: (v) => v == null ? 'Required' : null,
+                    items:
+                        (_selectedFaculty == null
+                                ? <String>[]
+                                : programmesForFaculty(_selectedFaculty!))
+                            .map(
+                              (p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(
+                                  p,
+                                  style: GoogleFonts.poppins(fontSize: 13),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: _selectedFaculty == null
+                        ? null
+                        : (v) => setState(() => _programme = v),
+                  ),
+                  const SizedBox(height: 10),
+
+                  DropdownButtonFormField<String>(
+                    value: _level,
+                    decoration: _inputDec('Level'),
+                    items: ['100', '200', '300', '400', '500']
+                        .map(
+                          (l) => DropdownMenuItem(
+                            value: l,
+                            child: Text(
+                              'Level $l',
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _level = v!),
+                  ),
+                ] else ...[
+                  _tf(
+                    'Staff ID',
+                    _idCtrl,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 10),
+
+                  FormField<Set<String>>(
+                    initialValue: _selectedDepts,
+                    validator: (_) => _selectedDepts.isEmpty
+                        ? 'Select at least one department'
+                        : null,
+                    builder: (field) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Departments',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _kText,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 220),
+                          decoration: BoxDecoration(
+                            color: _kBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: field.hasError
+                                  ? Colors.red
+                                  : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              children: kFaculties.map((f) {
+                                final checked = _selectedDepts.contains(f.name);
+                                return CheckboxListTile(
+                                  dense: true,
+                                  activeColor: _kCherry,
+                                  value: checked,
+                                  title: Text(
+                                    f.name,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: _kText,
+                                    ),
+                                  ),
+                                  onChanged: (v) {
+                                    setState(() {
+                                      if (v == true)
+                                        _selectedDepts.add(f.name);
+                                      else
+                                        _selectedDepts.remove(f.name);
+                                    });
+                                    field.didChange(_selectedDepts);
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                        if (field.hasError)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6, left: 4),
+                            child: Text(
+                              field.errorText!,
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: GoogleFonts.poppins(color: _kSubtext)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _kCherry,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: _loading
+              ? null
+              : () async {
+                  if (!_formKey.currentState!.validate()) return;
+                  setState(() => _loading = true);
+                  try {
+                    final depts = _selectedDepts.toList();
+                    final updated = await widget.ctrl.updateUser(
+                      widget.user.copyWith(
+                        fullName: _nameCtrl.text.trim(),
+                        indexNumber: isStudent ? _idCtrl.text.trim() : null,
+                        staffId: !isStudent ? _idCtrl.text.trim() : null,
+                        programme: isStudent ? _programme : null,
+                        level: isStudent ? _level : null,
+                        faculty: isStudent
+                            ? (_programme != null
+                                  ? facultyForProgramme(_programme!)
+                                  : _selectedFaculty)
+                            : (depts.isNotEmpty ? depts.first : null),
+                        departments: !isStudent ? depts : [],
+                        department: !isStudent && depts.isNotEmpty
+                            ? depts.first
+                            : null,
+                      ),
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      widget.onUpdated(updated);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${updated.fullName} updated successfully',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                          backgroundColor: _kGreen,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          margin: const EdgeInsets.all(16),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.toString().replaceFirst('Exception: ', ''),
+                            style: GoogleFonts.poppins(fontSize: 13),
+                          ),
+                          backgroundColor: _kCherry,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _loading = false);
+                  }
+                },
+          child: _loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _kWhite,
+                  ),
+                )
+              : Text(
+                  'Save Changes',
+                  style: GoogleFonts.poppins(
+                    color: _kWhite,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ══════════════════════════════════════════════
 //  ADD COURSE DIALOG
 // ══════════════════════════════════════════════
 class _AddCourseDialog extends StatefulWidget {
@@ -2727,16 +3241,27 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
   final _formKey = GlobalKey<FormState>();
   final _codeCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
-  final _deptCtrl = TextEditingController();
   int _credits = 3;
+  String? _selectedFaculty; // department = faculty name
   ManagedUserModel? _lecturer;
   bool _loading = false;
+
+  // Lecturers eligible to teach this course — filtered by faculty
+  List<ManagedUserModel> get _eligibleLecturers {
+    if (_selectedFaculty == null) return [];
+    return widget.lecturers
+        .where(
+          (l) =>
+              l.departments.contains(_selectedFaculty!) ||
+              l.department == _selectedFaculty,
+        )
+        .toList();
+  }
 
   @override
   void dispose() {
     _codeCtrl.dispose();
     _nameCtrl.dispose();
-    _deptCtrl.dispose();
     super.dispose();
   }
 
@@ -2748,7 +3273,7 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
       style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
     ),
     content: SizedBox(
-      width: 400,
+      width: 420,
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -2769,13 +3294,35 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 10),
-              _tf(
-                'Department',
-                _deptCtrl,
-                hint: 'Computer Science & Engineering',
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+
+              // Faculty / Department dropdown
+              DropdownButtonFormField<String>(
+                value: _selectedFaculty,
+                isExpanded: true,
+                decoration: _inputDec('School / Faculty (Department)'),
+                hint: Text(
+                  'Select faculty',
+                  style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
+                ),
+                validator: (v) => v == null ? 'Please select a faculty' : null,
+                items: kFaculties
+                    .map(
+                      (f) => DropdownMenuItem(
+                        value: f.name,
+                        child: Text(
+                          f.name,
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  _selectedFaculty = v;
+                  _lecturer = null; // reset lecturer when faculty changes
+                }),
               ),
               const SizedBox(height: 10),
+
               Row(
                 children: [
                   Text(
@@ -2795,11 +3342,21 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
                 ],
               ),
               const SizedBox(height: 10),
+
+              // Lecturer dropdown — only shows lecturers in this faculty
               DropdownButtonFormField<ManagedUserModel>(
                 value: _lecturer,
                 isExpanded: true,
                 decoration: _inputDec('Assign Lecturer (optional)'),
-                items: widget.lecturers
+                hint: Text(
+                  _selectedFaculty == null
+                      ? 'Select a faculty first'
+                      : _eligibleLecturers.isEmpty
+                      ? 'No lecturers in this faculty'
+                      : 'Select lecturer',
+                  style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
+                ),
+                items: _eligibleLecturers
                     .map(
                       (l) => DropdownMenuItem(
                         value: l,
@@ -2810,7 +3367,9 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
                       ),
                     )
                     .toList(),
-                onChanged: (l) => setState(() => _lecturer = l),
+                onChanged: _eligibleLecturers.isEmpty
+                    ? null
+                    : (l) => setState(() => _lecturer = l),
               ),
             ],
           ),
@@ -2832,9 +3391,7 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
         onPressed: _loading
             ? null
             : () async {
-                if (!_formKey.currentState!.validate()) {
-                  return;
-                }
+                if (!_formKey.currentState!.validate()) return;
                 setState(() => _loading = true);
                 try {
                   final course = await widget.ctrl.createCourse(
@@ -2842,8 +3399,11 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
                       id: '',
                       courseCode: _codeCtrl.text.trim(),
                       courseName: _nameCtrl.text.trim(),
-                      departmentId: 'dept_new',
-                      departmentName: _deptCtrl.text.trim(),
+                      departmentId: _selectedFaculty!.toLowerCase().replaceAll(
+                        ' ',
+                        '_',
+                      ),
+                      departmentName: _selectedFaculty!,
                       creditHours: _credits,
                       enrolledStudents: 0,
                       semester: '2025/2026 Semester 2',
@@ -2856,9 +3416,7 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
                     widget.onCreated(course);
                   }
                 } finally {
-                  if (mounted) {
-                    setState(() => _loading = false);
-                  }
+                  if (mounted) setState(() => _loading = false);
                 }
               },
         child: _loading

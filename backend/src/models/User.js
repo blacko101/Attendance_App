@@ -29,9 +29,6 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
 
-    // When true the user must change their password on next login.
-    // Set to true whenever an admin creates or resets an account.
-    // Cleared to false after the user successfully changes their password.
     mustChangePassword: {
       type:    Boolean,
       default: false,
@@ -42,9 +39,21 @@ const userSchema = new mongoose.Schema(
     programme:   { type: String, trim: true },
     level:       { type: String, trim: true },
 
-    // ── Lecturer / Admin / Dean fields ─────────────────────────────
-    staffId:    { type: String, trim: true },
+    // ── Faculty the user belongs to ───────────────────────────────
+    // Students: auto-derived from programme on create.
+    // Lecturers/Deans: set by admin.
+    faculty: { type: String, trim: true },
+
+    // ── Primary department (backwards-compat, mirrors departments[0])
     department: { type: String, trim: true },
+
+    // ── Lecturers can belong to MULTIPLE departments ───────────────
+    departments: {
+      type:    [String],
+      default: [],
+    },
+
+    staffId: { type: String, trim: true },
 
     isActive: {
       type:    Boolean,
@@ -55,18 +64,10 @@ const userSchema = new mongoose.Schema(
 );
 
 // ── Indexes ───────────────────────────────────────────────────────
-userSchema.index(
-  { indexNumber: 1 },
-  { unique: true, sparse: true, background: true, name: "idx_user_indexNumber" }
-);
-userSchema.index(
-  { staffId: 1 },
-  { unique: true, sparse: true, background: true, name: "idx_user_staffId" }
-);
-userSchema.index(
-  { role: 1 },
-  { background: true, name: "idx_user_role" }
-);
+userSchema.index({ indexNumber: 1 }, { unique: true, sparse: true, background: true, name: "idx_user_indexNumber" });
+userSchema.index({ staffId: 1 },     { unique: true, sparse: true, background: true, name: "idx_user_staffId" });
+userSchema.index({ role: 1 },        { background: true, name: "idx_user_role" });
+userSchema.index({ faculty: 1 },     { background: true, sparse: true, name: "idx_user_faculty" });
 
 // ── Serialisation safety ──────────────────────────────────────────
 userSchema.set("toJSON", {

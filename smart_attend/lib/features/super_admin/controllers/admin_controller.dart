@@ -173,7 +173,11 @@ class AdminController {
   ManagedUserModel _mapUser(Map<String, dynamic> u) {
     final roleStr = u['role'] as String? ?? 'student';
     final isActive = u['isActive'] as bool? ?? true;
-    final suspended = isActive == false;
+
+    final rawDepts = u['departments'];
+    final List<String> departments = rawDepts is List
+        ? rawDepts.whereType<String>().toList()
+        : [];
 
     return ManagedUserModel(
       id: u['_id'] as String? ?? '',
@@ -183,12 +187,14 @@ class AdminController {
         (r) => r.name == roleStr,
         orElse: () => UserRole.student,
       ),
-      status: suspended ? UserStatus.suspended : UserStatus.active,
+      status: isActive ? UserStatus.active : UserStatus.suspended,
       indexNumber: u['indexNumber'] as String?,
       staffId: u['staffId'] as String?,
       programme: u['programme'] as String?,
       level: u['level'] as String?,
+      faculty: u['faculty'] as String?,
       department: u['department'] as String?,
+      departments: departments,
       createdAt:
           DateTime.tryParse(u['createdAt'] as String? ?? '') ?? DateTime.now(),
     );
@@ -215,7 +221,9 @@ class AdminController {
             if (user.programme != null) 'programme': user.programme,
             if (user.level != null) 'level': user.level,
             if (user.staffId != null) 'staffId': user.staffId,
+            if (user.faculty != null) 'faculty': user.faculty,
             if (user.department != null) 'department': user.department,
+            if (user.departments.isNotEmpty) 'departments': user.departments,
           }),
         )
         .timeout(const Duration(seconds: 15));
@@ -225,6 +233,38 @@ class AdminController {
       return _mapUser(body['user'] as Map<String, dynamic>);
     }
     throw Exception(body['message'] as String? ?? 'Failed to create user.');
+  }
+
+  // PATCH /api/admin/users/:id  — edit details
+  Future<ManagedUserModel> updateUser(ManagedUserModel user) async {
+    final session = await SessionService.getSession();
+    if (session == null) throw Exception('Not authenticated.');
+
+    final response = await http
+        .patch(
+          Uri.parse('${AppConfig.adminUrl}/users/${user.id}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.token}',
+          },
+          body: jsonEncode({
+            'fullName': user.fullName,
+            if (user.indexNumber != null) 'indexNumber': user.indexNumber,
+            if (user.programme != null) 'programme': user.programme,
+            if (user.level != null) 'level': user.level,
+            if (user.staffId != null) 'staffId': user.staffId,
+            if (user.faculty != null) 'faculty': user.faculty,
+            if (user.department != null) 'department': user.department,
+            'departments': user.departments,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200) {
+      return _mapUser(body['user'] as Map<String, dynamic>);
+    }
+    throw Exception(body['message'] as String? ?? 'Failed to update user.');
   }
 
   // PATCH /api/admin/users/:id/status
