@@ -1,7 +1,7 @@
-const express    = require("express");
-const cors       = require("cors");
-const helmet     = require("helmet");
-const rateLimit  = require("express-rate-limit");
+const express   = require("express");
+const cors      = require("cors");
+const helmet    = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 // ── Route imports ──────────────────────────────────────────────────
 const authRoutes       = require("./routes/auth.routes");
@@ -11,93 +11,24 @@ const adminRoutes      = require("./routes/admin.routes");
 // ── App init ───────────────────────────────────────────────────────
 const app = express();
 
-// ── Security headers — Helmet (Priority 5) ─────────────────────────
-//
-// Helmet sets 11 security-related HTTP response headers in one call.
-// It MUST be the very first app.use() so every response — including
-// CORS pre-flights, 404s, and error responses — gets the headers.
-//
-// What each header does for this API:
-//
-//  Content-Security-Policy      — not critical for a pure JSON API
-//                                 (no HTML served), but blocks any
-//                                 accidental script injection if a
-//                                 route ever returns HTML by mistake.
-//
-//  Cross-Origin-Opener-Policy   — prevents cross-origin windows from
-//                                 retaining a reference to this page.
-//
-//  Cross-Origin-Resource-Policy — set to "same-origin" by default;
-//                                 prevents other origins from embedding
-//                                 responses as resources.
-//
-//  Referrer-Policy              — "no-referrer" — stops the browser
-//                                 sending the full URL of the referring
-//                                 page in the Referer header, which
-//                                 could leak internal routes or tokens
-//                                 embedded in query strings.
-//
-//  Strict-Transport-Security    — tells browsers to only contact this
-//  (HSTS)                         server over HTTPS for the next year,
-//                                 even if the user types http://.
-//                                 Critical once deployed behind TLS.
-//
-//  X-Content-Type-Options       — "nosniff" — prevents browsers from
-//                                 MIME-sniffing a response away from
-//                                 the declared Content-Type. Stops an
-//                                 attacker from uploading a JS file
-//                                 disguised as JSON and having it execute.
-//
-//  X-DNS-Prefetch-Control       — "off" — disables browser DNS
-//                                 pre-fetching, which can leak which
-//                                 external hosts the API communicates with.
-//
-//  X-Download-Options           — "noopen" — stops IE from auto-opening
-//                                 downloaded files in the context of the site.
-//
-//  X-Frame-Options              — "SAMEORIGIN" — blocks the API responses
-//                                 from being framed by a foreign origin,
-//                                 preventing clickjacking.
-//
-//  X-Permitted-Cross-Domain-Policies — "none" — blocks Adobe Flash and
-//                                 Acrobat from making cross-domain requests.
-//
-//  X-Powered-By                 — REMOVED. Without Helmet, Express adds
-//                                 "X-Powered-By: Express" to every response.
-//                                 This tells attackers exactly what framework
-//                                 and version to target. Helmet removes it.
-//
-// No custom config is needed — helmet() defaults are correct for a
-// REST API. If you later add a web frontend that loads scripts from a
-// CDN, you will need to configure the contentSecurityPolicy option.
 app.use(helmet());
 
 // ── CORS ───────────────────────────────────────────────────────────
-// Must come AFTER helmet() so helmet's headers are set first, but
-// BEFORE routes so pre-flight OPTIONS requests are handled correctly.
-// Development: allow all listed origins.
-// Production: set ALLOWED_ORIGINS="https://yourapp.com" in .env
-// In development, Flutter Web can open on any port (e.g. localhost:52345).
-// Rather than hardcoding every possible port, we allow any localhost origin
-// in dev and lock it down via ALLOWED_ORIGINS in production.
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : null; // null = use the function below for dev
+  : null;
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (Android emulator, Postman, curl)
     if (!origin) return callback(null, true);
 
-    // Production: check against explicit whitelist
     if (allowedOrigins) {
       if (allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error(`CORS blocked: ${origin}`));
     }
 
-    // Development: allow any localhost or 10.0.2.2 origin
-    // regardless of port (Flutter Web uses a random port)
-    const devPattern = /^http:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?$/;
+    const devPattern =
+      /^http:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?$/;
     if (devPattern.test(origin)) return callback(null, true);
 
     return callback(new Error(`CORS blocked: ${origin}`));
@@ -106,43 +37,98 @@ app.use(cors({
 }));
 
 // ── Body parser ────────────────────────────────────────────────────
-// Explicit 10kb limit (Priority 9): rejects oversized payloads before
-// they reach any route handler, preventing memory pressure attacks.
 app.use(express.json({ limit: "10kb" }));
 
-// ── Rate limiters (Priority 4) ─────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+//  RATE LIMITERS
 //
-// Three separate limiters with different thresholds to match the
-// risk profile of each endpoint group:
+//  Login uses a two-layer strategy:
 //
-//  1. authLimiter    — tightest. Protects login/register from brute-force
-//                      and credential-stuffing. 10 attempts per 15 min per IP.
+//  Layer 1 — per email address (keyGenerator reads req.body.email).
+//    • 5 failed attempts on the SAME account locks that account out
+//      for 15 minutes, regardless of IP.
+//    • This stops an attacker who rotates IPs from hammering one user.
+//    • Threshold is low (5) because a real user rarely misses their
+//      own password more than twice.
 //
-//  2. checkinLimiter — moderate. A student legitimately checks in once per
-//                      session, but we allow some headroom for retries
-//                      (GPS failure, network retry). 30 per 15 min per IP.
+//  Layer 2 — per IP address (default keyGenerator).
+//    • 20 attempts from the SAME IP locks that IP for 15 minutes,
+//      regardless of which email was typed.
+//    • This stops a single machine from cycling through many accounts.
+//    • Threshold is higher (20) to avoid blocking shared networks
+//      (offices, campuses) where many users share one public IP.
 //
-//  3. generalLimiter — broad safety net on all remaining API routes.
-//                      100 requests per 15 min per IP.
+//  Both limiters run on every login request — both counters increment.
+//  Whichever limit is hit first triggers the 429 response.
 //
-// standardHeaders: true  → sends RateLimit-* headers (RFC 6585 draft 7)
-//                          so clients can back off gracefully.
-// legacyHeaders: false   → suppresses the old X-RateLimit-* headers to
-//                          avoid sending duplicate/conflicting info.
+//  changePasswordLimiter — per IP, 20 per 15 min.
+//    Change-password is not a brute-force target (requires a valid
+//    JWT) so a relaxed IP-only limiter is sufficient.
+//
+//  checkinLimiter — per IP, 30 per 15 min.
+//
+//  generalLimiter — per IP, 100 per 15 min. Safety net on all routes.
+// ══════════════════════════════════════════════════════════════════
 
-const authLimiter = rateLimit({
-  windowMs:        15 * 60 * 1000, // 15 minutes
-  max:             10,              // max 10 requests per window per IP
+// ── Layer 1: per-email login limiter ─────────────────────────────
+// keyGenerator extracts the email from the POST body.
+// Falls back to IP if no email is present (malformed request).
+const loginEmailLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000,   // 15 minutes
+  max:             5,                 // 5 attempts per email per window
   standardHeaders: true,
   legacyHeaders:   false,
+  // Read the body AFTER express.json() has parsed it.
+  // express-rate-limit calls keyGenerator synchronously so req.body
+  // is already populated at this point.
+  keyGenerator: (req) => {
+    const email = req.body?.email;
+    if (email && typeof email === "string" && email.trim().length > 0) {
+      // Normalise — lowercase + trim — so "User@X.com" and "user@x.com"
+      // share the same counter.
+      return `login:email:${email.trim().toLowerCase()}`;
+    }
+    // Fallback to IP so malformed requests are still rate-limited
+    return `login:email:${req.ip}`;
+  },
   message: {
-    message: "Too many attempts from this IP. Please try again in 15 minutes.",
+    message:
+      "Too many login attempts for this account. "
+      + "Please try again in 15 minutes.",
   },
 });
 
+// ── Layer 2: per-IP login limiter ────────────────────────────────
+const loginIpLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000,   // 15 minutes
+  max:             20,                // 20 attempts per IP per window
+  standardHeaders: true,
+  legacyHeaders:   false,
+  // Default keyGenerator uses req.ip — no override needed
+  message: {
+    message:
+      "Too many login attempts from this device. "
+      + "Please try again in 15 minutes.",
+  },
+});
+
+// ── Change-password limiter (per IP) ────────────────────────────
+const changePasswordLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000,
+  max:             20,
+  standardHeaders: true,
+  legacyHeaders:   false,
+  message: {
+    message:
+      "Too many password change attempts. "
+      + "Please try again in 15 minutes.",
+  },
+});
+
+// ── Check-in limiter (per IP) ────────────────────────────────────
 const checkinLimiter = rateLimit({
-  windowMs:        15 * 60 * 1000, // 15 minutes
-  max:             30,              // max 30 check-in attempts per window per IP
+  windowMs:        15 * 60 * 1000,
+  max:             30,
   standardHeaders: true,
   legacyHeaders:   false,
   message: {
@@ -150,9 +136,10 @@ const checkinLimiter = rateLimit({
   },
 });
 
+// ── General safety-net limiter (per IP) ─────────────────────────
 const generalLimiter = rateLimit({
-  windowMs:        15 * 60 * 1000, // 15 minutes
-  max:             100,             // max 100 requests per window per IP
+  windowMs:        15 * 60 * 1000,
+  max:             100,
   standardHeaders: true,
   legacyHeaders:   false,
   message: {
@@ -160,46 +147,47 @@ const generalLimiter = rateLimit({
   },
 });
 
-// ── Apply rate limiters before routes ──────────────────────────────
+// ── Apply rate limiters before routes ────────────────────────────
 //
-// Order matters: specific limiters MUST be registered before the
-// generalLimiter so that /api/auth and /api/attendance/checkin are
-// governed by their own stricter rules, not the general 100/window cap.
-app.use("/api/auth",               authLimiter);
-app.use("/api/attendance/checkin", checkinLimiter);
-app.use("/api",                    generalLimiter);
+// Specific limiters MUST be registered before generalLimiter.
+// Both login limiters run on every POST /api/auth/login — the first
+// one to fire a 429 wins; the other never increments past that point.
+app.use("/api/auth/login",           loginEmailLimiter);
+app.use("/api/auth/login",           loginIpLimiter);
+app.use("/api/auth/register",        loginIpLimiter);
+app.use("/api/auth/change-password", changePasswordLimiter);
+app.use("/api/attendance/checkin",   checkinLimiter);
+app.use("/api",                      generalLimiter);
 
-// ── Routes ─────────────────────────────────────────────────────────
+// ── Routes ───────────────────────────────────────────────────────
 app.use("/api/auth",       authRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/admin",      adminRoutes);
 
-// ── Health check ───────────────────────────────────────────────────
+// ── Health check ─────────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.json({ message: "Smart-Attend API is running ✅", version: "1.0.0" });
 });
 
-// ── Malformed JSON handler (Priority 11) ───────────────────────────
-// express.json() throws a SyntaxError with type "entity.parse.failed"
-// when the body is not valid JSON. Without this handler, the global
-// error handler below catches it and returns a generic 500.
-// MUST sit before the global error handler.
+// ── Malformed JSON handler ────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (err.type === "entity.parse.failed") {
-    return res.status(400).json({ message: "Invalid JSON in request body." });
+    return res
+      .status(400)
+      .json({ message: "Invalid JSON in request body." });
   }
   next(err);
 });
 
-// ── 404 handler ────────────────────────────────────────────────────
+// ── 404 handler ──────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({ message: `Route ${req.originalUrl} not found.` });
+  res
+    .status(404)
+    .json({ message: `Route ${req.originalUrl} not found.` });
 });
 
-// ── Global error handler ───────────────────────────────────────────
-// 4-argument signature is required for Express to treat this as an
-// error handler. Catches anything not handled by the JSON handler above.
+// ── Global error handler ─────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err.message);
