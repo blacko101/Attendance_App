@@ -40,24 +40,28 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+      // The dean portal has its own dedicated URL: /#/dean
+      // Navigating to that URL opens DeanAccessScreen directly,
+      // completely bypassing the normal welcome / login flow.
       initialRoute: WelcomeScreen.id,
-      // ChangePasswordScreen needs a nextRoute argument so it uses
-      // onGenerateRoute. All other screens use the simple routes table.
       onGenerateRoute: (settings) {
         if (settings.name == ChangePasswordScreen.id) {
-          final nextRoute =
-              (settings.arguments as String?) ?? StudentDashboard.id;
+          final nextRoute = settings.arguments as String? ?? LoginScreen.id;
           return MaterialPageRoute(
             builder: (_) => ChangePasswordScreen(nextRoute: nextRoute),
+            settings: settings,
           );
         }
-        return null; // falls through to routes table below
+        return null;
       },
       routes: {
         WelcomeScreen.id: (context) => const WelcomeScreen(),
         LoginScreen.id: (context) => const LoginScreen(),
         StudentDashboard.id: (context) => const StudentDashboard(),
         LecturerDashboard.id: (context) => const LecturerDashboard(),
+        // '/dean' is the public URL for the dean portal.
+        // Share this link with department heads — it never
+        // shows the normal student/staff login page.
         DeanAccessScreen.id: (context) => const DeanAccessScreen(),
         DeanDashboard.id: (context) => const DeanDashboard(),
         SuperAdminDashboard.id: (context) => const SuperAdminDashboard(),
