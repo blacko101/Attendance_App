@@ -67,6 +67,14 @@ router.post("/login", login);
 router.get("/me", authMiddleware, getMe);
 
 // ─────────────────────────────────────────────
+//  POST /api/auth/change-password  — protected
+//  Used on first-login forced password change
+//  and for voluntary password updates.
+//  Body: { currentPassword, newPassword }
+// ─────────────────────────────────────────────
+router.post("/change-password", authMiddleware, changePassword);
+
+// ─────────────────────────────────────────────
 //  PATCH /api/auth/users/:id/role  — admin only
 // ─────────────────────────────────────────────
 router.patch(
