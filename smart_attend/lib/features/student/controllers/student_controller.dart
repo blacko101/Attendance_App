@@ -1,77 +1,70 @@
-import 'package:smart_attend/features/student/models/course_model.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:smart_attend/core/config/app_config.dart';
+import 'package:smart_attend/features/auth/services/session_service.dart';
+import 'package:smart_attend/features/student/models/course_model.dart';
 
 class StudentController {
-  // ── In production, inject studentId from your AuthController/session ──
-  // e.g. final String studentId;
-  // StudentController({required this.studentId});
-
-  /// Fetches enrolled courses for the current semester.
-  /// TODO: Replace mock with real API call:
-  /// GET /api/students/:studentId/courses?semester=current
+  // ── FETCH ENROLLED COURSES ────────────────────────────────────────
+  // Derived from the student's own attendance history.
+  // GET /api/attendance/student/:studentId
+  // Groups unique course codes into CourseModel entries so the
+  // dashboard "Today's Classes" section shows real data.
   Future<List<CourseModel>> fetchEnrolledCourses(String studentId) async {
-    await Future.delayed(const Duration(milliseconds: 600)); // simulate network
+    final session = await SessionService.getSession();
+    if (session == null) return [];
 
-    // TODO: Replace with:
-    // final res = await http.get(Uri.parse('$baseUrl/students/$studentId/courses'));
-    // final List data = jsonDecode(res.body);
-    // return data.map((e) => CourseModel.fromJson(e)).toList();
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/student/$studentId'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
 
-    return [
-      CourseModel(
-        id: 'c1',
-        courseCode: 'MATH 101',
-        courseName: 'Mathematics',
-        instructor: 'Dr. Mensah',
-        startTime: const TimeOfDay(hour: 10, minute: 0),
-        endTime: const TimeOfDay(hour: 11, minute: 30),
-        weekdays: [1, 3, 5],
-        room: 'Block A - Room 12',
-      ),
-      CourseModel(
-        id: 'c2',
-        courseCode: 'PHY 201',
-        courseName: 'Physics Lab',
-        instructor: 'Prof. Asante',
-        startTime: const TimeOfDay(hour: 12, minute: 0),
-        endTime: const TimeOfDay(hour: 13, minute: 30),
-        weekdays: [1, 2, 4],
-        room: 'Science Block - Lab 3',
-      ),
-      CourseModel(
-        id: 'c3',
-        courseCode: 'HIS 101',
-        courseName: 'History',
-        instructor: 'Dr. Acheampong',
-        startTime: const TimeOfDay(hour: 14, minute: 0),
-        endTime: const TimeOfDay(hour: 15, minute: 30),
-        weekdays: [2, 4],
-        room: 'Block C - Room 5',
-      ),
-      CourseModel(
-        id: 'c4',
-        courseCode: 'ENG 102',
-        courseName: 'English Composition',
-        instructor: 'Mrs. Darko',
-        startTime: const TimeOfDay(hour: 8, minute: 0),
-        endTime: const TimeOfDay(hour: 9, minute: 30),
-        weekdays: [1, 3, 5],
-        room: 'Block B - Room 7',
-      ),
-      CourseModel(
-        id: 'c5',
-        courseCode: 'CS 301',
-        courseName: 'Data Structures',
-        instructor: 'Dr. Boateng',
-        startTime: const TimeOfDay(hour: 15, minute: 30),
-        endTime: const TimeOfDay(hour: 17, minute: 0),
-        weekdays: [2, 5],
-        room: 'ICT Block - Lab 1',
-      ),
-    ];
+      if (response.statusCode != 200) return [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final records = (body['records'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      // Deduplicate by courseCode — each unique course becomes one entry
+      final Map<String, Map<String, dynamic>> seen = {};
+      for (final r in records) {
+        final sess = r['sessionId'];
+        if (sess == null) continue;
+        final code = (sess is Map ? sess['courseCode'] : null) as String? ?? '';
+        if (code.isNotEmpty && !seen.containsKey(code)) {
+          seen[code] = r;
+        }
+      }
+
+      return seen.entries.map((e) {
+        final r = e.value;
+        final sess = r['sessionId'] as Map<String, dynamic>? ?? {};
+        final code = sess['courseCode'] as String? ?? e.key;
+        final name = sess['courseName'] as String? ?? code;
+
+        return CourseModel(
+          id: r['_id'] as String? ?? code,
+          courseCode: code,
+          courseName: name,
+          instructor: '',
+          // No schedule data in the attendance record — use placeholders
+          // until a dedicated /courses endpoint exists on the backend.
+          startTime: const TimeOfDay(hour: 8, minute: 0),
+          endTime: const TimeOfDay(hour: 9, minute: 30),
+          weekdays: [],
+          room: '',
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
-  /// Filters and sorts today's upcoming courses from a full course list
+  // ── FILTER TODAY'S UPCOMING COURSES ──────────────────────────────
   List<CourseModel> getUpcomingToday(List<CourseModel> allCourses) {
     final upcoming = allCourses.where((c) => c.isUpcomingToday).toList();
     upcoming.sort((a, b) {
