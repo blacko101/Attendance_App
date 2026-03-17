@@ -20,15 +20,18 @@ class ChangePasswordScreen extends StatefulWidget {
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _currentPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
 
+  bool _showCurrent = false;
   bool _showNew = false;
   bool _showConfirm = false;
   bool _isLoading = false;
 
   @override
   void dispose() {
+    _currentPasswordCtrl.dispose();
     _newPasswordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     super.dispose();
@@ -51,7 +54,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${session.token}',
             },
-            body: jsonEncode({'newPassword': _newPasswordCtrl.text}),
+            body: jsonEncode({
+              'currentPassword': _currentPasswordCtrl.text,
+              'newPassword': _newPasswordCtrl.text,
+            }),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -59,7 +65,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
       if (response.statusCode == 200) {
         // Clear the mustChangePassword flag in the saved session so the
-        // user is never redirected here again on next login.
+        // user is never redirected here again on next launch.
         final updated = session.copyWithPasswordChanged();
         await SessionService.saveSession(updated);
 
@@ -138,9 +144,82 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
-                // ── New Password ───────────────────────────
+                // ── Info banner — tells user what the current password is ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF2196F3).withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: Color(0xFF2196F3),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Your current (default) password is  '
+                          'Central@123\n'
+                          'Enter it below, then choose a new personal password.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: const Color(0xFF1565C0),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ── Current Password ───────────────────────────────
+                Text(
+                  'Current Password',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _currentPasswordCtrl,
+                  obscureText: !_showCurrent,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Enter your current password';
+                    }
+                    return null;
+                  },
+                  decoration: _inputDecoration(
+                    hint: 'Enter current password',
+                    icon: Icons.lock_outline,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _showCurrent
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () =>
+                          setState(() => _showCurrent = !_showCurrent),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── New Password ───────────────────────────────────
                 Text(
                   'New Password',
                   style: GoogleFonts.poppins(
@@ -158,6 +237,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     }
                     if (v.length < 8) {
                       return 'Must be at least 8 characters';
+                    }
+                    if (v == 'Central@123') {
+                      return 'Choose a different password — do not reuse the default';
                     }
                     return null;
                   },
@@ -178,7 +260,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 const SizedBox(height: 20),
 
-                // ── Confirm Password ───────────────────────
+                // ── Confirm Password ───────────────────────────────
                 Text(
                   'Confirm Password',
                   style: GoogleFonts.poppins(
@@ -192,7 +274,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   obscureText: !_showConfirm,
                   validator: (v) {
                     if (v == null || v.isEmpty) {
-                      return 'Confirm your password';
+                      return 'Confirm your new password';
                     }
                     if (v != _newPasswordCtrl.text) {
                       return 'Passwords do not match';
@@ -217,7 +299,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
                 const SizedBox(height: 36),
 
-                // ── Submit ─────────────────────────────────
                 CustomButtonWidget(
                   onPressed: _isLoading ? null : _submit,
                   text: 'Change Password',
