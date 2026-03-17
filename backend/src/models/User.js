@@ -25,12 +25,12 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type:    String,
-      enum:    ["student", "lecturer", "admin"],
+      enum:    ["student", "lecturer", "admin", "dean"],
       default: "student",
     },
 
     // When true the user must change their password on next login.
-    // Set to true whenever an admin creates the account.
+    // Set to true whenever an admin creates or resets an account.
     // Cleared to false after the user successfully changes their password.
     mustChangePassword: {
       type:    Boolean,
@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
     programme:   { type: String, trim: true },
     level:       { type: String, trim: true },
 
-    // ── Lecturer / Admin-only fields ───────────────────────────────
+    // ── Lecturer / Admin / Dean fields ─────────────────────────────
     staffId:    { type: String, trim: true },
     department: { type: String, trim: true },
 
@@ -54,9 +54,18 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-userSchema.index({ indexNumber: 1 }, { unique: true, sparse: true, background: true, name: "idx_user_indexNumber" });
-userSchema.index({ staffId:     1 }, { unique: true, sparse: true, background: true, name: "idx_user_staffId" });
-userSchema.index({ role:        1 }, { background: true,                             name: "idx_user_role" });
+userSchema.index(
+  { indexNumber: 1 },
+  { unique: true, sparse: true, background: true, name: "idx_user_indexNumber" }
+);
+userSchema.index(
+  { staffId: 1 },
+  { unique: true, sparse: true, background: true, name: "idx_user_staffId" }
+);
+userSchema.index(
+  { role: 1 },
+  { background: true, name: "idx_user_role" }
+);
 
 userSchema.set("toJSON", {
   transform: (doc, ret) => {
