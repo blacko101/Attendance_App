@@ -4,84 +4,31 @@ const authMiddleware = require("../middleware/auth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
 
 const {
-  login,
-  register,
-  getMe,
-  updateRole,
-  changePassword,
-} = require("../controllers/auth.controller");
+  listUsers,
+  createUser,
+  getUser,
+  updateUser,
+  setUserStatus,
+  listSessions,
+  getSessionReport,
+  getStats,
+} = require("../controllers/admin.controller");
 
-router.post("/register", register);
-router.post("/login",    login);
+router.use(authMiddleware);
+router.use(roleMiddleware("admin"));
 
-// ─────────────────────────────────────────────
-//  ROLE-SCOPED LOGIN ENDPOINTS
-//  ─────────────────────────────────────────────
-//  Each route injects req.expectedRole before the
-//  shared login handler runs. If the user's DB role
-//  doesn't match, login returns 401 — same message
-//  as a wrong password so no role info is leaked.
-//
-//  Student / Lecturer → /api/auth/login/<role>
-//  Admin  / Dean      → /api/auth/<role>/login
-//  (separate URL prefix keeps privileged routes
-//   visually and structurally distinct)
-// ─────────────────────────────────────────────
-router.post(
-  "/login/student",
-  (req, _res, next) => { req.expectedRole = "student"; next(); },
-  login
-);
+// Dashboard
+router.get("/stats", getStats);
 
-router.post(
-  "/login/lecturer",
-  (req, _res, next) => { req.expectedRole = "lecturer"; next(); },
-  login
-);
+// User management
+router.get("/users",              listUsers);
+router.post("/users",             createUser);
+router.get("/users/:id",          getUser);
+router.patch("/users/:id",        updateUser);       // edit details
+router.patch("/users/:id/status", setUserStatus);    // activate / suspend
 
-router.post(
-  "/admin/login",
-  (req, _res, next) => { req.expectedRole = "admin"; next(); },
-  login
-);
-
-router.post(
-  "/dean/login",
-  (req, _res, next) => { req.expectedRole = "dean"; next(); },
-  login
-);
-
-// ─────────────────────────────────────────────
-//  LEGACY  POST /api/auth/login  — kept for
-//  backward compatibility during migration.
-//  No expectedRole set → role check is skipped.
-//  TODO: Remove this route once all Flutter
-//        clients have been updated to the
-//        role-scoped endpoints above.
-// ─────────────────────────────────────────────
-router.post("/login", login);
-
-// ─────────────────────────────────────────────
-//  GET /api/auth/me  — protected
-// ─────────────────────────────────────────────
-router.get("/me", authMiddleware, getMe);
-
-// ─────────────────────────────────────────────
-//  POST /api/auth/change-password  — protected
-//  Used on first-login forced password change
-//  and for voluntary password updates.
-//  Body: { currentPassword, newPassword }
-// ─────────────────────────────────────────────
-router.post("/change-password", authMiddleware, changePassword);
-
-// ─────────────────────────────────────────────
-//  PATCH /api/auth/users/:id/role  — admin only
-// ─────────────────────────────────────────────
-router.patch(
-  "/users/:id/role",
-  authMiddleware,
-  roleMiddleware("admin"),
-  updateRole
-);
+// Session management (read-only)
+router.get("/sessions",                   listSessions);
+router.get("/sessions/:sessionId/report", getSessionReport);
 
 module.exports = router;
