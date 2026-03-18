@@ -1,7 +1,42 @@
 const express   = require("express");
 const cors      = require("cors");
 const helmet    = require("helmet");
-const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
+const rateLimit = require("express-rate-limit");
+const mongoose  = require("mongoose");
+
+// ── Register Course & Timetable models ────────────────────────────
+// These are defined inline in seed.js. We re-register them here so
+// they exist in mongoose.models at runtime for the attendance routes.
+if (!mongoose.models.Course) {
+  mongoose.model("Course", new mongoose.Schema({
+    courseCode:           { type: String, required: true, unique: true, trim: true },
+    courseName:           { type: String, required: true, trim: true },
+    department:           { type: String, required: true, trim: true },
+    faculty:              { type: String, trim: true },
+    creditHours:          { type: Number, default: 3 },
+    semester:             { type: String, required: true },
+    assignedLecturerId:   { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    assignedLecturerName: { type: String, default: null },
+    enrolledStudents:     { type: Number, default: 0 },
+  }, { timestamps: true }));
+}
+
+if (!mongoose.models.Timetable) {
+  mongoose.model("Timetable", new mongoose.Schema({
+    courseId:     { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true },
+    courseCode:   { type: String, required: true, trim: true },
+    courseName:   { type: String, required: true, trim: true },
+    lecturerId:   { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    lecturerName: { type: String, default: "" },
+    day:          { type: String, enum: ["Mon","Tue","Wed","Thu","Fri","Sat"], required: true },
+    startTime:    { type: String, required: true },
+    endTime:      { type: String, required: true },
+    room:         { type: String, default: "" },
+    level:        { type: String, default: "" },
+    programme:    { type: String, default: "" },
+    semester:     { type: String, required: true },
+  }, { timestamps: true }));
+}
 
 // ── Route imports ──────────────────────────────────────────────────
 const authRoutes       = require("./routes/auth.routes");
@@ -89,8 +124,7 @@ const loginEmailLimiter = rateLimit({
       return `login:email:${email.trim().toLowerCase()}`;
     }
     // Fallback to IP so malformed requests are still rate-limited
-    // Use ipKeyGenerator to safely handle IPv6 address normalisation
-    return `login:email:${ipKeyGenerator(req)}`;
+    return `login:email:${req.ip}`;
   },
   message: {
     message:

@@ -41,7 +41,6 @@ router.post(
 router.post("/login", login);
 
 router.get("/me", authMiddleware, getMe);
-router.post("/change-password", authMiddleware, changePassword);
 
 router.post("/change-password", authMiddleware, changePassword);
 

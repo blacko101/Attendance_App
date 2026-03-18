@@ -9,6 +9,9 @@ const {
   getSessionStudents,
   getStudentAttendance,
   endSession,
+  getMySessions,
+  getMyCourses,
+  getMyTimetable,
 } = require("../controllers/attendance.controller");
 
 // ─────────────────────────────────────────────
@@ -20,6 +23,41 @@ router.post(
   authMiddleware,
   roleMiddleware("lecturer"),
   createSession
+);
+
+// ─────────────────────────────────────────────
+//  GET /api/attendance/sessions
+//  Lecturer views their own past/live sessions.
+// ─────────────────────────────────────────────
+router.get(
+  "/sessions",
+  authMiddleware,
+  roleMiddleware("lecturer"),
+  getMySessions
+);
+
+// ─────────────────────────────────────────────
+//  GET /api/attendance/my-courses
+//  Returns courses assigned to the lecturer
+//  from the Course collection.
+// ─────────────────────────────────────────────
+router.get(
+  "/my-courses",
+  authMiddleware,
+  roleMiddleware("lecturer"),
+  getMyCourses
+);
+
+// ─────────────────────────────────────────────
+//  GET /api/attendance/my-timetable
+//  Returns timetable slots for the lecturer
+//  from the Timetable collection.
+// ─────────────────────────────────────────────
+router.get(
+  "/my-timetable",
+  authMiddleware,
+  roleMiddleware("lecturer"),
+  getMyTimetable
 );
 
 // ─────────────────────────────────────────────
@@ -46,7 +84,7 @@ router.get(
 
 // ─────────────────────────────────────────────
 //  GET /api/attendance/student/:studentId
-//  Attendance history — own record (student) or any record (lecturer/admin).
+//  Attendance history — own record (student) or any (lecturer/admin).
 // ─────────────────────────────────────────────
 router.get(
   "/student/:studentId",

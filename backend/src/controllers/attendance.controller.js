@@ -407,3 +407,63 @@ exports.getMySessions = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
+// ─────────────────────────────────────────────────────────────────
+//  GET MY COURSES
+//  GET /api/attendance/my-courses
+//  Auth: lecturer only
+//  Returns all courses from the Course collection where
+//  assignedLecturerId matches the authenticated lecturer.
+// ─────────────────────────────────────────────────────────────────
+exports.getMyCourses = async (req, res) => {
+  try {
+    // Course model lives in seed.js — access via mongoose.model()
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+
+    if (!Course) {
+      return res.status(200).json({ courses: [] });
+    }
+
+    const courses = await Course.find({
+      assignedLecturerId: req.user.id,
+    }).sort({ courseCode: 1 });
+
+    return res.status(200).json({
+      count: courses.length,
+      courses,
+    });
+  } catch (err) {
+    console.error("getMyCourses error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GET MY TIMETABLE
+//  GET /api/attendance/my-timetable
+//  Auth: lecturer only
+//  Returns all timetable slots from the Timetable collection
+//  where lecturerId matches the authenticated lecturer.
+// ─────────────────────────────────────────────────────────────────
+exports.getMyTimetable = async (req, res) => {
+  try {
+    const mongoose  = require("mongoose");
+    const Timetable = mongoose.models.Timetable;
+
+    if (!Timetable) {
+      return res.status(200).json({ slots: [] });
+    }
+
+    const slots = await Timetable.find({
+      lecturerId: req.user.id,
+    }).sort({ day: 1, startTime: 1 });
+
+    return res.status(200).json({
+      count: slots.length,
+      slots,
+    });
+  } catch (err) {
+    console.error("getMyTimetable error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
