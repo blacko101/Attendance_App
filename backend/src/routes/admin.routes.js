@@ -7,6 +7,7 @@ const {
   listUsers,
   createUser,
   getUser,
+  updateUser,
   setUserStatus,
   listSessions,
   getSessionReport,
@@ -23,6 +24,7 @@ router.get("/stats", getStats);
 router.get("/users",              listUsers);
 router.post("/users",             createUser);
 router.get("/users/:id",          getUser);
+router.patch("/users/:id",        updateUser);
 router.patch("/users/:id/status", setUserStatus);
 
 // Session management (read-only)

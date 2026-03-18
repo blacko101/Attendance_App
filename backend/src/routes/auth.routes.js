@@ -4,31 +4,51 @@ const authMiddleware = require("../middleware/auth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
 
 const {
-  listUsers,
-  createUser,
-  getUser,
-  updateUser,
-  setUserStatus,
-  listSessions,
-  getSessionReport,
-  getStats,
-} = require("../controllers/admin.controller");
+  login,
+  register,
+  getMe,
+  updateRole,
+  changePassword,
+} = require("../controllers/auth.controller");
 
-router.use(authMiddleware);
-router.use(roleMiddleware("admin"));
+router.post("/register", register);
+router.post("/login",    login);
 
-// Dashboard
-router.get("/stats", getStats);
+router.post(
+  "/login/student",
+  (req, _res, next) => { req.expectedRole = "student"; next(); },
+  login
+);
 
-// User management
-router.get("/users",              listUsers);
-router.post("/users",             createUser);
-router.get("/users/:id",          getUser);
-router.patch("/users/:id",        updateUser);       // edit details
-router.patch("/users/:id/status", setUserStatus);    // activate / suspend
+router.post(
+  "/login/lecturer",
+  (req, _res, next) => { req.expectedRole = "lecturer"; next(); },
+  login
+);
 
-// Session management (read-only)
-router.get("/sessions",                   listSessions);
-router.get("/sessions/:sessionId/report", getSessionReport);
+router.post(
+  "/admin/login",
+  (req, _res, next) => { req.expectedRole = "admin"; next(); },
+  login
+);
+
+router.post(
+  "/dean/login",
+  (req, _res, next) => { req.expectedRole = "dean"; next(); },
+  login
+);
+
+router.post("/login", login);
+
+router.get("/me", authMiddleware, getMe);
+
+router.post("/change-password", authMiddleware, changePassword);
+
+router.patch(
+  "/users/:id/role",
+  authMiddleware,
+  roleMiddleware("admin"),
+  updateRole
+);
 
 module.exports = router;
