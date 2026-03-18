@@ -17,21 +17,21 @@ class AdminController {
       final results = await Future.wait([
         http
             .get(
-              Uri.parse('${AppConfig.adminUrl}/stats'),
-              headers: {'Authorization': 'Bearer ${session.token}'},
-            )
+          Uri.parse('${AppConfig.adminUrl}/stats'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
             .timeout(const Duration(seconds: 10)),
         http
             .get(
-              Uri.parse('${AppConfig.adminUrl}/users?role=lecturer&limit=100'),
-              headers: {'Authorization': 'Bearer ${session.token}'},
-            )
+          Uri.parse('${AppConfig.adminUrl}/users?role=lecturer&limit=100'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
             .timeout(const Duration(seconds: 10)),
         http
             .get(
-              Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
-              headers: {'Authorization': 'Bearer ${session.token}'},
-            )
+          Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -184,7 +184,7 @@ class AdminController {
       fullName: u['fullName'] as String? ?? '',
       email: u['email'] as String? ?? '',
       role: UserRole.values.firstWhere(
-        (r) => r.name == roleStr,
+            (r) => r.name == roleStr,
         orElse: () => UserRole.student,
       ),
       status: isActive ? UserStatus.active : UserStatus.suspended,
@@ -196,7 +196,7 @@ class AdminController {
       department: u['department'] as String?,
       departments: departments,
       createdAt:
-          DateTime.tryParse(u['createdAt'] as String? ?? '') ?? DateTime.now(),
+      DateTime.tryParse(u['createdAt'] as String? ?? '') ?? DateTime.now(),
     );
   }
 
@@ -208,24 +208,24 @@ class AdminController {
 
     final response = await http
         .post(
-          Uri.parse('${AppConfig.adminUrl}/users'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${session.token}',
-          },
-          body: jsonEncode({
-            'fullName': user.fullName,
-            'email': user.email,
-            'role': user.role.name,
-            if (user.indexNumber != null) 'indexNumber': user.indexNumber,
-            if (user.programme != null) 'programme': user.programme,
-            if (user.level != null) 'level': user.level,
-            if (user.staffId != null) 'staffId': user.staffId,
-            if (user.faculty != null) 'faculty': user.faculty,
-            if (user.department != null) 'department': user.department,
-            if (user.departments.isNotEmpty) 'departments': user.departments,
-          }),
-        )
+      Uri.parse('${AppConfig.adminUrl}/users'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.token}',
+      },
+      body: jsonEncode({
+        'fullName': user.fullName,
+        'email': user.email,
+        'role': user.role.name,
+        if (user.indexNumber != null) 'indexNumber': user.indexNumber,
+        if (user.programme != null) 'programme': user.programme,
+        if (user.level != null) 'level': user.level,
+        if (user.staffId != null) 'staffId': user.staffId,
+        if (user.faculty != null) 'faculty': user.faculty,
+        if (user.department != null) 'department': user.department,
+        if (user.departments.isNotEmpty) 'departments': user.departments,
+      }),
+    )
         .timeout(const Duration(seconds: 15));
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -242,22 +242,22 @@ class AdminController {
 
     final response = await http
         .patch(
-          Uri.parse('${AppConfig.adminUrl}/users/${user.id}'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${session.token}',
-          },
-          body: jsonEncode({
-            'fullName': user.fullName,
-            if (user.indexNumber != null) 'indexNumber': user.indexNumber,
-            if (user.programme != null) 'programme': user.programme,
-            if (user.level != null) 'level': user.level,
-            if (user.staffId != null) 'staffId': user.staffId,
-            if (user.faculty != null) 'faculty': user.faculty,
-            if (user.department != null) 'department': user.department,
-            'departments': user.departments,
-          }),
-        )
+      Uri.parse('${AppConfig.adminUrl}/users/${user.id}'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.token}',
+      },
+      body: jsonEncode({
+        'fullName': user.fullName,
+        if (user.indexNumber != null) 'indexNumber': user.indexNumber,
+        if (user.programme != null) 'programme': user.programme,
+        if (user.level != null) 'level': user.level,
+        if (user.staffId != null) 'staffId': user.staffId,
+        if (user.faculty != null) 'faculty': user.faculty,
+        if (user.department != null) 'department': user.department,
+        'departments': user.departments,
+      }),
+    )
         .timeout(const Duration(seconds: 15));
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -274,22 +274,22 @@ class AdminController {
 
     await http
         .patch(
-          Uri.parse('${AppConfig.adminUrl}/users/$userId/status'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${session.token}',
-          },
-          body: jsonEncode({'isActive': status == UserStatus.active}),
-        )
+      Uri.parse('${AppConfig.adminUrl}/users/$userId/status'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.token}',
+      },
+      body: jsonEncode({'isActive': status == UserStatus.active}),
+    )
         .timeout(const Duration(seconds: 10));
   }
 
   // Bulk CSV upload — validates format locally, then creates users
   // one by one via POST /api/admin/users.
   Future<CsvUploadResult> bulkUploadUsers(
-    String csvContent,
-    UserRole role,
-  ) async {
+      String csvContent,
+      UserRole role,
+      ) async {
     final lines = csvContent
         .split('\n')
         .where((l) => l.trim().isNotEmpty)
@@ -380,25 +380,25 @@ class AdminController {
       final results = await Future.wait([
         http
             .get(
-              Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
-              headers: {'Authorization': 'Bearer ${session.token}'},
-            )
+          Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
             .timeout(const Duration(seconds: 10)),
         http
             .get(
-              Uri.parse('${AppConfig.adminUrl}/users?role=lecturer&limit=100'),
-              headers: {'Authorization': 'Bearer ${session.token}'},
-            )
+          Uri.parse('${AppConfig.adminUrl}/users?role=lecturer&limit=100'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
             .timeout(const Duration(seconds: 10)),
       ]);
 
       final sessions = results[0].statusCode == 200
           ? (jsonDecode(results[0].body)['sessions'] as List? ?? [])
-                .cast<Map<String, dynamic>>()
+          .cast<Map<String, dynamic>>()
           : <Map<String, dynamic>>[];
       final lecturers = results[1].statusCode == 200
           ? (jsonDecode(results[1].body)['users'] as List? ?? [])
-                .cast<Map<String, dynamic>>()
+          .cast<Map<String, dynamic>>()
           : <Map<String, dynamic>>[];
 
       // Build lecturer lookup map
@@ -445,9 +445,9 @@ class AdminController {
         courses = courses
             .where(
               (c) =>
-                  c.courseCode.toLowerCase().contains(q) ||
-                  c.courseName.toLowerCase().contains(q),
-            )
+          c.courseCode.toLowerCase().contains(q) ||
+              c.courseName.toLowerCase().contains(q),
+        )
             .toList();
       }
 
@@ -478,9 +478,9 @@ class AdminController {
   }
 
   Future<AdminCourseModel> assignLecturer(
-    AdminCourseModel course,
-    ManagedUserModel lecturer,
-  ) async {
+      AdminCourseModel course,
+      ManagedUserModel lecturer,
+      ) async {
     return course.copyWith(
       assignedLecturerId: lecturer.id,
       assignedLecturerName: lecturer.fullName,
@@ -504,9 +504,9 @@ class AdminController {
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
-            headers: {'Authorization': 'Bearer ${session.token}'},
-          )
+        Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
+        headers: {'Authorization': 'Bearer ${session.token}'},
+      )
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return [];
@@ -520,7 +520,7 @@ class AdminController {
         final lectName = lect is Map ? lect['fullName'] as String? ?? '' : '';
         final created =
             DateTime.tryParse(s['createdAt'] as String? ?? '') ??
-            DateTime.now();
+                DateTime.now();
         final expires = DateTime.tryParse(s['expiresAt'] as String? ?? '');
         final dayIdx = created.weekday - 1;
         const dayMap = [
@@ -560,8 +560,8 @@ class AdminController {
   }
 
   Future<TimetableSlotModel> createTimetableSlot(
-    TimetableSlotModel slot,
-  ) async {
+      TimetableSlotModel slot,
+      ) async {
     return TimetableSlotModel(
       id: 'local_${DateTime.now().millisecondsSinceEpoch}',
       courseId: slot.courseId,

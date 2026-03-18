@@ -1,17 +1,14 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_attend/core/theme/app_colors.dart';
 import 'package:smart_attend/features/student/controllers/student_controller.dart';
 import 'package:smart_attend/features/student/models/course_model.dart';
 import 'package:smart_attend/features/student/views/mobile/calendar_screen.dart';
 import 'package:smart_attend/features/student/views/mobile/courses_screen.dart';
 import 'package:smart_attend/features/student/views/mobile/profile_screen.dart';
 import 'package:smart_attend/features/attendance/views/mobile/qr_scanner_screen.dart';
-
-const kCherry = Color(0xFF9B1B42);
-const kWhite  = Color(0xFFFFFFFF);
-const kBg     = Color(0xFFEEEEF3);
-const kCard   = Color(0xFFF5F5F8);
+import 'package:smart_attend/features/student/widgets/attendance_options_sheet.dart';
 
 class StudentDashboard extends StatefulWidget {
   static String id = 'student_dashboard';
@@ -24,7 +21,6 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   int _currentIndex = 0;
 
-  // All 4 screens — built once in initState
   late final List<Widget> _screens;
 
   @override
@@ -41,17 +37,17 @@ class _StudentDashboardState extends State<StudentDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: AppColors.bg(context),
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: kCherry,
+        backgroundColor: AppColors.cherry,
         elevation: 6,
-        onPressed: () => Navigator.pushNamed(context, QrScannerScreen.id),
+        onPressed: () => showAttendanceOptions(context),
         child: const Icon(Icons.qr_code_scanner_rounded,
-            color: kWhite, size: 26),
+            color: Colors.white, size: 26),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _BottomNav(
@@ -120,7 +116,7 @@ class _HomeTabState extends State<_HomeTab> {
                   style: GoogleFonts.poppins(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1A1A))),
+                      color: AppColors.text(context))),
               _NotifBtn(onTap: () {}),
             ],
           ),
@@ -130,7 +126,7 @@ class _HomeTabState extends State<_HomeTab> {
             style: GoogleFonts.poppins(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1A1A1A))),
+                color: AppColors.text(context))),
         const SizedBox(height: 24),
 
         _AttendanceRing(percentage: _attendanceRate),
@@ -138,10 +134,10 @@ class _HomeTabState extends State<_HomeTab> {
 
         Expanded(
           child: _loading
-              ? const Center(
-              child: CircularProgressIndicator(color: kCherry))
+              ? Center(
+              child: CircularProgressIndicator(color: AppColors.cherry))
               : RefreshIndicator(
-            color: kCherry,
+            color: AppColors.cherry,
             onRefresh: _loadCourses,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -175,7 +171,7 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) => BottomAppBar(
     shape: const CircularNotchedRectangle(),
     notchMargin: 8,
-    color: kWhite,
+    color: AppColors.card(context),
     elevation: 12,
     padding: EdgeInsets.zero,
     child: SizedBox(
@@ -183,31 +179,15 @@ class _BottomNav extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _NavItem(
-              icon:  Icons.home_outlined,
-              label: 'Home',
-              index: 0,
-              ci:    currentIndex,
-              onTap: onTap),
-          _NavItem(
-              icon:  Icons.calendar_month_rounded,
-              label: 'Schedule',
-              index: 1,
-              ci:    currentIndex,
-              onTap: onTap),
+          _NavItem(icon: Icons.home_outlined,
+              label: 'Home',     index: 0, ci: currentIndex, onTap: onTap),
+          _NavItem(icon: Icons.calendar_month_rounded,
+              label: 'Schedule', index: 1, ci: currentIndex, onTap: onTap),
           const SizedBox(width: 56),
-          _NavItem(
-              icon:  Icons.book_outlined,
-              label: 'Courses',
-              index: 2,
-              ci:    currentIndex,
-              onTap: onTap),
-          _NavItem(
-              icon:  Icons.person_outline_rounded,
-              label: 'Profile',
-              index: 3,
-              ci:    currentIndex,
-              onTap: onTap),
+          _NavItem(icon: Icons.book_outlined,
+              label: 'Courses',  index: 2, ci: currentIndex, onTap: onTap),
+          _NavItem(icon: Icons.person_outline_rounded,
+              label: 'Profile',  index: 3, ci: currentIndex, onTap: onTap),
         ],
       ),
     ),
@@ -239,18 +219,16 @@ class _NavItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon,
-                color: active ? kCherry : const Color(0xFF888888),
+                color: active ? AppColors.cherry : AppColors.subtext(context),
                 size: 24),
             const SizedBox(height: 4),
             Text(label,
                 style: GoogleFonts.poppins(
                     fontSize: 10,
-                    fontWeight: active
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                     color: active
-                        ? kCherry
-                        : const Color(0xFF888888))),
+                        ? AppColors.cherry
+                        : AppColors.subtext(context))),
           ],
         ),
       ),
@@ -273,21 +251,24 @@ class _NotifBtn extends StatelessWidget {
       Container(
         width: 44, height: 44,
         decoration: BoxDecoration(
-          color: kBg,
+          color: AppColors.bg(context),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-                color: Colors.white.withValues(alpha: 0.85),
+                color: AppColors.isDark(context)
+                    ? Colors.black.withValues(alpha: 0.4)
+                    : Colors.white.withValues(alpha: 0.85),
                 offset: const Offset(-3, -3),
                 blurRadius: 6),
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
+                color: Colors.black.withValues(
+                    alpha: AppColors.isDark(context) ? 0.3 : 0.12),
                 offset: const Offset(3, 3),
                 blurRadius: 6),
           ],
         ),
-        child: const Icon(Icons.notifications_outlined,
-            color: Color(0xFF555555), size: 22),
+        child: Icon(Icons.notifications_outlined,
+            color: AppColors.subtext(context), size: 22),
       ),
       Positioned(
         top: 8, right: 8,
@@ -316,7 +297,7 @@ class _AttendanceRing extends StatelessWidget {
           style: GoogleFonts.poppins(
               fontSize: 36,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF1A1A1A)),
+              color: AppColors.text(context)),
         ),
       ),
     ),
@@ -368,12 +349,12 @@ class _TotalClassesCard extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-        color: kCherry,
+        color: AppColors.cherry,
         borderRadius: BorderRadius.circular(20)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Total Classes',
           style: GoogleFonts.poppins(
-              color: kWhite,
+              color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w700)),
       const SizedBox(height: 14),
@@ -397,12 +378,12 @@ class _Stat extends StatelessWidget {
     children: [
       Text(label,
           style: GoogleFonts.poppins(
-              color: kWhite.withValues(alpha: 0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 14)),
       const SizedBox(height: 4),
       Text('$value',
           style: GoogleFonts.poppins(
-              color: kWhite,
+              color: Colors.white,
               fontSize: 26,
               fontWeight: FontWeight.w800)),
     ],
@@ -418,7 +399,7 @@ class _UpcomingClassesCard extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: kCard,
+      color: AppColors.cardAlt(context),
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
@@ -433,11 +414,11 @@ class _UpcomingClassesCard extends StatelessWidget {
             style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1A1A1A))),
+                color: AppColors.text(context))),
         Text('${courses.length} left',
             style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: kCherry.withValues(alpha: 0.8),
+                color: AppColors.cherry.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w500)),
       ]),
       const SizedBox(height: 16),
@@ -457,12 +438,12 @@ class _EmptyClassesState extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 16),
     child: Column(children: [
       Icon(Icons.check_circle_outline_rounded,
-          color: kCherry.withValues(alpha: 0.5), size: 40),
+          color: AppColors.cherry.withValues(alpha: 0.5), size: 40),
       const SizedBox(height: 8),
       Text('No more classes today 🎉',
           style: GoogleFonts.poppins(
               fontSize: 14,
-              color: Colors.grey.shade500,
+              color: AppColors.subtext(context),
               fontWeight: FontWeight.w500)),
     ]),
   );
@@ -487,12 +468,11 @@ class _ClassRow extends StatelessWidget {
                 RichText(
                   text: TextSpan(
                     style: GoogleFonts.poppins(
-                        fontSize: 15, color: const Color(0xFF1A1A1A)),
+                        fontSize: 15, color: AppColors.text(context)),
                     children: [
                       TextSpan(
                           text: '${parts.first} ',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700)),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
                       TextSpan(
                           text:
                           '${parts.length > 1 ? parts.sublist(1).join(" ") : ""}'
@@ -504,7 +484,7 @@ class _ClassRow extends StatelessWidget {
                 Text(course.room,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                        fontSize: 11, color: Colors.grey.shade500)),
+                        fontSize: 11, color: AppColors.subtext(context))),
               ],
             ),
           ),

@@ -370,7 +370,7 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
                 ),
               ),
               child: DropdownButtonFormField<DepartmentModel>(
-                value: _selectedDept,
+                initialValue: _selectedDept,
                 isExpanded: true,
                 icon: const Icon(
                   Icons.keyboard_arrow_down_rounded,

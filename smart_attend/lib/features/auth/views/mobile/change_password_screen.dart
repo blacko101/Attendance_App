@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -9,7 +10,6 @@ import 'package:smart_attend/features/auth/widgets/custom_button_widget.dart';
 class ChangePasswordScreen extends StatefulWidget {
   static String id = 'change_password_screen';
 
-  /// The route to navigate to after a successful password change.
   final String nextRoute;
 
   const ChangePasswordScreen({super.key, required this.nextRoute});
@@ -19,15 +19,15 @@ class ChangePasswordScreen extends StatefulWidget {
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _currentPasswordCtrl = TextEditingController();
-  final _newPasswordCtrl = TextEditingController();
-  final _confirmPasswordCtrl = TextEditingController();
+  final _formKey              = GlobalKey<FormState>();
+  final _currentPasswordCtrl  = TextEditingController();
+  final _newPasswordCtrl      = TextEditingController();
+  final _confirmPasswordCtrl  = TextEditingController();
 
   bool _showCurrent = false;
-  bool _showNew = false;
+  bool _showNew     = false;
   bool _showConfirm = false;
-  bool _isLoading = false;
+  bool _isLoading   = false;
 
   @override
   void dispose() {
@@ -49,28 +49,23 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
       final response = await http
           .post(
-            Uri.parse('${AppConfig.authUrl}/change-password'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${session.token}',
-            },
-            body: jsonEncode({
-              'currentPassword': _currentPasswordCtrl.text,
-              'newPassword': _newPasswordCtrl.text,
-            }),
-          )
+        Uri.parse('${AppConfig.authUrl}/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.token}',
+        },
+        body: jsonEncode({
+          'currentPassword': _currentPasswordCtrl.text,
+          'newPassword': _newPasswordCtrl.text,
+        }),
+      )
           .timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-        // Clear the mustChangePassword flag in the saved session so the
-        // user is never redirected here again on next launch.
         final updated = session.copyWithPasswordChanged();
         await SessionService.saveSession(updated);
-
-        // Navigate to the correct dashboard, removing this screen from
-        // the back stack so the user cannot press Back to return here.
         Navigator.pushReplacementNamed(context, widget.nextRoute);
       } else {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -99,217 +94,224 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6),
+      backgroundColor: kIsWeb
+          ? const Color(0xFF9B1B42)
+          : const Color(0xFFFAF9F6),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 48),
-
-                const Center(
-                  child: Icon(
-                    Icons.lock_reset_rounded,
-                    size: 64,
-                    color: Color(0xFF9B1B42),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                Center(
-                  child: Text(
-                    'Set New Password',
-                    style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                Center(
-                  child: Text(
-                    'Your account requires a password change\n'
-                    'before you can continue.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // ── Info banner — tells user what the current password is ──
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE3F2FD),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: const Color(0xFF2196F3).withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.info_outline_rounded,
-                        color: Color(0xFF2196F3),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Your current (default) password is  '
-                          'Central@123\n'
-                          'Enter it below, then choose a new personal password.',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: const Color(0xFF1565C0),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── Current Password ───────────────────────────────
-                Text(
-                  'Current Password',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _currentPasswordCtrl,
-                  obscureText: !_showCurrent,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Enter your current password';
-                    }
-                    return null;
-                  },
-                  decoration: _inputDecoration(
-                    hint: 'Enter current password',
-                    icon: Icons.lock_outline,
-                    suffix: IconButton(
-                      icon: Icon(
-                        _showCurrent
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () =>
-                          setState(() => _showCurrent = !_showCurrent),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ── New Password ───────────────────────────────────
-                Text(
-                  'New Password',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _newPasswordCtrl,
-                  obscureText: !_showNew,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Enter a new password';
-                    }
-                    if (v.length < 8) {
-                      return 'Must be at least 8 characters';
-                    }
-                    if (v == 'Central@123') {
-                      return 'Choose a different password — do not reuse the default';
-                    }
-                    return null;
-                  },
-                  decoration: _inputDecoration(
-                    hint: 'Enter new password',
-                    icon: Icons.lock_outline,
-                    suffix: IconButton(
-                      icon: Icon(
-                        _showNew
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () => setState(() => _showNew = !_showNew),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // ── Confirm Password ───────────────────────────────
-                Text(
-                  'Confirm Password',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _confirmPasswordCtrl,
-                  obscureText: !_showConfirm,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Confirm your new password';
-                    }
-                    if (v != _newPasswordCtrl.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                  decoration: _inputDecoration(
-                    hint: 'Re-enter new password',
-                    icon: Icons.lock_outline,
-                    suffix: IconButton(
-                      icon: Icon(
-                        _showConfirm
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () =>
-                          setState(() => _showConfirm = !_showConfirm),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 36),
-
-                CustomButtonWidget(
-                  onPressed: _isLoading ? null : _submit,
-                  text: 'Change Password',
-                  isLoading: _isLoading,
-                ),
-
-                const SizedBox(height: 24),
-              ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: kIsWeb ? 40.0 : 0,
+              ),
+              child: kIsWeb ? _webCard() : _formBody(),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ── Web: form inside a white card ──────────────────────────────────────────
+  Widget _webCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 40,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(36),
+      child: _formBody(),
+    );
+  }
+
+  // ── Shared form body ───────────────────────────────────────────────────────
+  Widget _formBody() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+
+          const Center(
+            child: Icon(
+              Icons.lock_reset_rounded,
+              size: 64,
+              color: Color(0xFF9B1B42),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          Center(
+            child: Text(
+              'Set New Password',
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Center(
+            child: Text(
+              'Your account requires a password change\nbefore you can continue.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // ── Info banner ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE3F2FD),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: const Color(0xFF2196F3).withValues(alpha: 0.4),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    color: Color(0xFF2196F3), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Your current (default) password is  Central@123\n'
+                        'Enter it below, then choose a new personal password.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: const Color(0xFF1565C0),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Current Password ──
+          Text('Current Password',
+              style: GoogleFonts.poppins(
+                  fontSize: 14, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _currentPasswordCtrl,
+            obscureText: !_showCurrent,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Enter your current password';
+              return null;
+            },
+            decoration: _inputDecoration(
+              hint: 'Enter current password',
+              icon: Icons.lock_outline,
+              suffix: IconButton(
+                icon: Icon(
+                  _showCurrent
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () =>
+                    setState(() => _showCurrent = !_showCurrent),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── New Password ──
+          Text('New Password',
+              style: GoogleFonts.poppins(
+                  fontSize: 14, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _newPasswordCtrl,
+            obscureText: !_showNew,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Enter a new password';
+              if (v.length < 8) return 'Must be at least 8 characters';
+              if (v == 'Central@123') {
+                return 'Choose a different password — do not reuse the default';
+              }
+              return null;
+            },
+            decoration: _inputDecoration(
+              hint: 'Enter new password',
+              icon: Icons.lock_outline,
+              suffix: IconButton(
+                icon: Icon(
+                  _showNew
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () => setState(() => _showNew = !_showNew),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Confirm Password ──
+          Text('Confirm Password',
+              style: GoogleFonts.poppins(
+                  fontSize: 14, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _confirmPasswordCtrl,
+            obscureText: !_showConfirm,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Confirm your new password';
+              if (v != _newPasswordCtrl.text) return 'Passwords do not match';
+              return null;
+            },
+            decoration: _inputDecoration(
+              hint: 'Re-enter new password',
+              icon: Icons.lock_outline,
+              suffix: IconButton(
+                icon: Icon(
+                  _showConfirm
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () =>
+                    setState(() => _showConfirm = !_showConfirm),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 36),
+
+          CustomButtonWidget(
+            onPressed: _isLoading ? null : _submit,
+            text: 'Change Password',
+            isLoading: _isLoading,
+          ),
+
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
@@ -321,9 +323,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }) {
     return InputDecoration(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: const Color(0xFFF5F5F5),
       hintText: hint,
-      hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
+      hintStyle:
+      GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
       prefixIcon: Icon(icon, color: Colors.black),
       suffixIcon: suffix,
       border: OutlineInputBorder(

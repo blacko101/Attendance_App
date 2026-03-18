@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_attend/core/theme/app_colors.dart';
 import 'package:smart_attend/features/student/controllers/calendar_controller.dart';
 import 'package:smart_attend/features/student/models/attendance_model.dart';
 
-const kCherry   = Color(0xFF9B1B42);
-const kCherryBg = Color(0xFFFFEEF2);
-const kGreen    = Color(0xFF4CAF50);
-const kGreenBg  = Color(0xFFE8F5E9);
-const kBlue     = Color(0xFF2196F3);
-const kBlueBg   = Color(0xFFE3F2FD);
-const kBg       = Color(0xFFEEEEF3);
-const kCard     = Color(0xFFF5F5F8);
-const kWhite    = Color(0xFFFFFFFF);
+// Brand-fixed backgrounds for stat chips — these don't change with theme
+const _kGreenBg  = Color(0xFFE8F5E9);
+const _kBlueBg   = Color(0xFFE3F2FD);
+const _kBlue     = Color(0xFF2196F3);
 
 class CalendarScreen extends StatefulWidget {
   static String id = 'calendar_screen';
@@ -81,7 +77,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: Column(children: [
           _buildHeader(),
@@ -91,7 +87,8 @@ class _CalendarScreenState extends State<CalendarScreen>
           const SizedBox(height: 12),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator(color: kCherry))
+                ? Center(child: CircularProgressIndicator(
+                color: AppColors.cherry))
                 : TabBarView(
               controller: _tabController,
               children: [
@@ -107,7 +104,7 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   // ── HEADER ────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
-    final months = [
+    const months = [
       'January','February','March','April','May','June',
       'July','August','September','October','November','December'
     ];
@@ -120,7 +117,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               style: GoogleFonts.poppins(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1A1A1A))),
+                  color: AppColors.text(context))),
           Row(children: [
             _NeumorphicBtn(icon: Icons.chevron_left_rounded,  onTap: _prevMonth),
             const SizedBox(width: 8),
@@ -129,7 +126,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1A1A1A)),
+                  color: AppColors.text(context)),
             ),
             const SizedBox(width: 8),
             _NeumorphicBtn(icon: Icons.chevron_right_rounded, onTap: _nextMonth),
@@ -146,19 +143,19 @@ class _CalendarScreenState extends State<CalendarScreen>
       child: Container(
         height: 44,
         decoration: BoxDecoration(
-          color: kCard,
+          color: AppColors.cardAlt(context),
           borderRadius: BorderRadius.circular(12),
         ),
         child: TabBar(
           controller: _tabController,
           indicator: BoxDecoration(
-            color: kCherry,
+            color: AppColors.cherry,
             borderRadius: BorderRadius.circular(10),
           ),
           indicatorSize: TabBarIndicatorSize.tab,
           dividerColor: Colors.transparent,
-          labelColor: kWhite,
-          unselectedLabelColor: Colors.grey.shade500,
+          labelColor: Colors.white,
+          unselectedLabelColor: AppColors.subtext(context),
           labelStyle: GoogleFonts.poppins(
               fontSize: 13, fontWeight: FontWeight.w600),
           unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
@@ -181,11 +178,14 @@ class _CalendarScreenState extends State<CalendarScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(children: [
-        _StatChip(label: 'Present', value: '$present', color: kGreen,  bg: kGreenBg),
+        _StatChip(label: 'Present', value: '$present',
+            color: AppColors.green,  bg: _kGreenBg),
         const SizedBox(width: 10),
-        _StatChip(label: 'Absent',  value: '$absent',  color: kCherry, bg: kCherryBg),
+        _StatChip(label: 'Absent',  value: '$absent',
+            color: AppColors.cherry, bg: AppColors.cherryBg),
         const SizedBox(width: 10),
-        _StatChip(label: 'Rate',    value: '$rate%',   color: kBlue,   bg: kBlueBg),
+        _StatChip(label: 'Rate',    value: '$rate%',
+            color: _kBlue,           bg: _kBlueBg),
       ]),
     );
   }
@@ -216,8 +216,8 @@ class _CalendarScreenState extends State<CalendarScreen>
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: d == 'Sun' || d == 'Sat'
-                    ? Colors.grey.shade400
-                    : Colors.grey.shade600,
+                    ? AppColors.subtext(context)
+                    : AppColors.subtext(context),
               )),
         ),
       )).toList(),
@@ -225,15 +225,15 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   Widget _buildMonthGrid() {
-    final firstDay   = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final firstDay    = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
-    final offset     = firstDay.weekday - 1;
-    final totalCells = offset + daysInMonth;
-    final rows       = (totalCells / 7).ceil();
+    final offset      = firstDay.weekday - 1;
+    final totalCells  = offset + daysInMonth;
+    final rows        = (totalCells / 7).ceil();
 
     return Container(
       decoration: BoxDecoration(
-        color: kCard,
+        color: AppColors.cardAlt(context),
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(12),
@@ -261,9 +261,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                     margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? kCherry
+                          ? AppColors.cherry
                           : isToday
-                          ? kCherryBg
+                          ? AppColors.cherryBg
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -277,10 +277,10 @@ class _CalendarScreenState extends State<CalendarScreen>
                                   ? FontWeight.w700
                                   : FontWeight.w400,
                               color: isSelected
-                                  ? kWhite
+                                  ? Colors.white
                                   : isToday
-                                  ? kCherry
-                                  : const Color(0xFF1A1A1A),
+                                  ? AppColors.cherry
+                                  : AppColors.text(context),
                             )),
                         if (dayData != null && dayData.hasClasses)
                           Container(
@@ -288,7 +288,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                             height: 5,
                             margin: const EdgeInsets.only(top: 2),
                             decoration: BoxDecoration(
-                              color: isSelected ? kWhite : dayData.dayColor,
+                              color: isSelected ? Colors.white : dayData.dayColor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -323,7 +323,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: kCard,
+        color: AppColors.cardAlt(context),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -341,9 +341,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? kCherry
+                      ? AppColors.cherry
                       : isToday
-                      ? kCherryBg
+                      ? AppColors.cherryBg
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -351,7 +351,9 @@ class _CalendarScreenState extends State<CalendarScreen>
                   Text(dayNames[i],
                       style: GoogleFonts.poppins(
                         fontSize: 11,
-                        color: isSelected ? kWhite : Colors.grey.shade500,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.subtext(context),
                         fontWeight: FontWeight.w500,
                       )),
                   const SizedBox(height: 6),
@@ -360,10 +362,10 @@ class _CalendarScreenState extends State<CalendarScreen>
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: isSelected
-                            ? kWhite
+                            ? Colors.white
                             : isToday
-                            ? kCherry
-                            : const Color(0xFF1A1A1A),
+                            ? AppColors.cherry
+                            : AppColors.text(context),
                       )),
                   const SizedBox(height: 4),
                   if (dayData != null && dayData.hasClasses)
@@ -371,7 +373,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                       width: 5,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: isSelected ? kWhite : dayData.dayColor,
+                        color: isSelected ? Colors.white : dayData.dayColor,
                         shape: BoxShape.circle,
                       ),
                     )
@@ -389,16 +391,16 @@ class _CalendarScreenState extends State<CalendarScreen>
   // ── DAY DETAIL ────────────────────────────────────────────────────────────
   Widget _buildDayDetail() {
     final dayData = _dayData(_selectedDay);
-    final months  = ['Jan','Feb','Mar','Apr','May','Jun',
+    const months  = ['Jan','Feb','Mar','Apr','May','Jun',
       'Jul','Aug','Sep','Oct','Nov','Dec'];
-    final days    = ['Monday','Tuesday','Wednesday','Thursday',
+    const days    = ['Monday','Tuesday','Wednesday','Thursday',
       'Friday','Saturday','Sunday'];
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kCard,
+        color: AppColors.cardAlt(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -409,13 +411,11 @@ class _CalendarScreenState extends State<CalendarScreen>
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-        // Date heading
         Row(children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: kCherryBg,
+              color: AppColors.cherryBg,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -425,13 +425,11 @@ class _CalendarScreenState extends State<CalendarScreen>
               style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: kCherry),
+                  color: AppColors.cherry),
             ),
           ),
         ]),
-
         const SizedBox(height: 16),
-
         if (dayData == null || !dayData.hasClasses)
           _EmptyDay()
         else
@@ -457,7 +455,7 @@ class _SessionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kWhite,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(12),
         border: Border(
           left: BorderSide(color: session.statusColor, width: 4),
@@ -470,40 +468,41 @@ class _SessionCard extends StatelessWidget {
                 style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1A1A1A))),
+                    color: AppColors.text(context))),
             const SizedBox(height: 2),
             Text(session.courseName,
                 style: GoogleFonts.poppins(
-                    fontSize: 12, color: Colors.grey.shade500)),
+                    fontSize: 12, color: AppColors.subtext(context))),
             const SizedBox(height: 4),
             Row(children: [
               Icon(Icons.schedule_rounded,
-                  size: 12, color: Colors.grey.shade400),
+                  size: 12, color: AppColors.subtext(context)),
               const SizedBox(width: 4),
               Text(session.formattedTime,
                   style: GoogleFonts.poppins(
-                      fontSize: 11, color: Colors.grey.shade500)),
+                      fontSize: 11, color: AppColors.subtext(context))),
               const SizedBox(width: 10),
               Icon(Icons.location_on_rounded,
-                  size: 12, color: Colors.grey.shade400),
+                  size: 12, color: AppColors.subtext(context)),
               const SizedBox(width: 4),
               Flexible(
-                child: Text(session.room, overflow: TextOverflow.ellipsis,         // ← truncate with ...
+                child: Text(session.room,
+                    overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                     style: GoogleFonts.poppins(
-                        fontSize: 11, color: Colors.grey.shade500)),
+                        fontSize: 11, color: AppColors.subtext(context))),
               ),
             ]),
             if (session.absenceReason != null) ...[
               const SizedBox(height: 4),
               Row(children: [
-                const Icon(Icons.info_outline_rounded,
-                    size: 12, color: kCherry),
+                Icon(Icons.info_outline_rounded,
+                    size: 12, color: AppColors.cherry),
                 const SizedBox(width: 4),
                 Text(session.absenceReason!,
                     style: GoogleFonts.poppins(
                         fontSize: 11,
-                        color: kCherry,
+                        color: AppColors.cherry,
                         fontStyle: FontStyle.italic)),
               ]),
             ],
@@ -541,12 +540,12 @@ class _EmptyDay extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Column(children: [
         Icon(Icons.event_available_rounded,
-            color: Colors.grey.shade300, size: 40),
+            color: AppColors.subtext(context), size: 40),
         const SizedBox(height: 8),
         Text('No classes this day',
             style: GoogleFonts.poppins(
                 fontSize: 13,
-                color: Colors.grey.shade400,
+                color: AppColors.subtext(context),
                 fontWeight: FontWeight.w500)),
       ]),
     );
@@ -562,28 +561,34 @@ class _NeumorphicBtn extends StatelessWidget {
   const _NeumorphicBtn({required this.icon, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: kBg,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-              color: Colors.white.withValues(alpha: 0.85),
-              offset: const Offset(-2, -2),
-              blurRadius: 4),
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              offset: const Offset(2, 2),
-              blurRadius: 4),
-        ],
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.bg(context),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.4)
+                    : Colors.white.withValues(alpha: 0.85),
+                offset: const Offset(-2, -2),
+                blurRadius: 4),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.10),
+                offset: const Offset(2, 2),
+                blurRadius: 4),
+          ],
+        ),
+        child: Icon(icon,
+            color: AppColors.subtext(context), size: 18),
       ),
-      child: Icon(icon, color: const Color(0xFF555555), size: 18),
-    ),
-  );
+    );
+  }
 }
 
 // ─────────────────────────────────────────────

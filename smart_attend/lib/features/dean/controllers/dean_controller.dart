@@ -59,11 +59,6 @@ class DeanController {
         }
       }
 
-      // Fallback — derive departments from lecturer accounts.
-      // This works without any auth token.
-      final lecResp = await http
-          .get(Uri.parse('${AppConfig.baseUrl}/auth/me'))
-          .timeout(const Duration(seconds: 5));
 
       // If no session at all, return the seeded department
       // so the dropdown is never empty on first run.

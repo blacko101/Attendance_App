@@ -1,7 +1,7 @@
 const express   = require("express");
 const cors      = require("cors");
 const helmet    = require("helmet");
-const rateLimit = require("express-rate-limit");
+const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 
 // ── Route imports ──────────────────────────────────────────────────
 const authRoutes       = require("./routes/auth.routes");
@@ -89,7 +89,8 @@ const loginEmailLimiter = rateLimit({
       return `login:email:${email.trim().toLowerCase()}`;
     }
     // Fallback to IP so malformed requests are still rate-limited
-    return `login:email:${req.ip}`;
+    // Use ipKeyGenerator to safely handle IPv6 address normalisation
+    return `login:email:${ipKeyGenerator(req)}`;
   },
   message: {
     message:

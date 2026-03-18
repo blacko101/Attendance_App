@@ -247,8 +247,9 @@ class LecturerController {
       perm = await Geolocator.requestPermission();
     }
     if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever)
+        perm == LocationPermission.deniedForever) {
       return null;
+    }
 
     try {
       return await Geolocator.getCurrentPosition(

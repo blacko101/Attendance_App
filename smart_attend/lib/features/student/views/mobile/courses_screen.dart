@@ -1,15 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:smart_attend/core/theme/app_colors.dart';
 import 'package:smart_attend/features/student/controllers/courses_controller.dart';
 import 'package:smart_attend/features/student/models/course_detail_model.dart';
-
-const _kCherry   = Color(0xFF9B1B42);
-const _kCherryBg = Color(0xFFFFEEF2);
-const _kGreen    = Color(0xFF4CAF50);
-const _kBg       = Color(0xFFEEEEF3);
-const _kCard     = Color(0xFFF5F5F8);
-const _kWhite    = Color(0xFFFFFFFF);
 
 class CoursesScreen extends StatefulWidget {
   static String id = 'courses_screen';
@@ -67,7 +61,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: Column(children: [
 
@@ -80,23 +74,24 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 Text('My Courses',
                     style: GoogleFonts.poppins(
                         fontSize: 22, fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1A1A))),
+                        color: AppColors.text(context))),
                 GestureDetector(
                   onTap: _toggleSort,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _kCherryBg,
+                      color: AppColors.cherryBg,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.sort_rounded, size: 14, color: _kCherry),
+                      Icon(Icons.sort_rounded, size: 14,
+                          color: AppColors.cherry),
                       const SizedBox(width: 4),
                       Text(
                           _sortBy == 'absences' ? 'By Risk' : 'By Name',
                           style: GoogleFonts.poppins(
-                              fontSize: 12, color: _kCherry,
+                              fontSize: 12, color: AppColors.cherry,
                               fontWeight: FontWeight.w600)),
                     ]),
                   ),
@@ -110,17 +105,15 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
           Expanded(
             child: _loading
-                ? const Center(
-                child: CircularProgressIndicator(color: _kCherry))
+                ? Center(
+                child: CircularProgressIndicator(color: AppColors.cherry))
                 : RefreshIndicator(
-              color: _kCherry,
+              color: AppColors.cherry,
               onRefresh: _loadCourses,
               child: ListView.separated(
-                // FIX 7: Bottom padding clears the FAB + nav bar
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                 itemCount: _courses.length,
-                separatorBuilder: (_, _) =>
-                const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, i) => _CourseCard(
                   course: _courses[i],
                   onTap: () => _showCourseDetail(_courses[i]),
@@ -139,7 +132,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _kCherry,
+          color: AppColors.cherry,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(children: [
@@ -151,7 +144,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 child: Text('${_overallRate.toInt()}%',
                     style: GoogleFonts.poppins(
                         fontSize: 14, fontWeight: FontWeight.w800,
-                        color: _kWhite)),
+                        color: Colors.white)),
               ),
             ),
           ),
@@ -163,11 +156,11 @@ class _CoursesScreenState extends State<CoursesScreen> {
                   Text('Overall Attendance',
                       style: GoogleFonts.poppins(
                           fontSize: 13,
-                          color: _kWhite.withValues(alpha: 0.85))),
+                          color: Colors.white.withValues(alpha: 0.85))),
                   Text('${_courses.length} courses this semester',
                       style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: _kWhite.withValues(alpha: 0.65))),
+                          color: Colors.white.withValues(alpha: 0.65))),
                   const SizedBox(height: 8),
                   if (_warningCount > 0)
                     Container(
@@ -184,7 +177,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                         Text(
                             '$_warningCount course${_warningCount > 1 ? "s" : ""} need attention',
                             style: GoogleFonts.poppins(
-                                fontSize: 11, color: _kWhite,
+                                fontSize: 11, color: Colors.white,
                                 fontWeight: FontWeight.w600)),
                       ]),
                     )
@@ -195,7 +188,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                       const SizedBox(width: 4),
                       Text('All courses on track!',
                           style: GoogleFonts.poppins(
-                              fontSize: 12, color: _kWhite,
+                              fontSize: 12, color: Colors.white,
                               fontWeight: FontWeight.w500)),
                     ]),
                 ]),
@@ -230,7 +223,7 @@ class _CourseCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _kCard,
+          color: AppColors.cardAlt(context),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -248,10 +241,11 @@ class _CourseCard extends StatelessWidget {
                         Text(course.courseCode,
                             style: GoogleFonts.poppins(
                                 fontSize: 15, fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1A1A1A))),
+                                color: AppColors.text(context))),
                         Text(course.courseName,
                             style: GoogleFonts.poppins(
-                                fontSize: 12, color: Colors.grey.shade500)),
+                                fontSize: 12,
+                                color: AppColors.subtext(context))),
                       ]),
                 ),
                 Container(
@@ -279,7 +273,7 @@ class _CourseCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 child: LinearProgressIndicator(
                   value: course.attendanceRate / 100,
-                  backgroundColor: Colors.grey.shade200,
+                  backgroundColor: AppColors.divider(context),
                   valueColor:
                   AlwaysStoppedAnimation<Color>(course.statusColor),
                   minHeight: 8,
@@ -292,12 +286,12 @@ class _CourseCard extends StatelessWidget {
                 _InfoChip(
                     icon: Icons.check_rounded,
                     label: '${course.attended} attended',
-                    color: _kGreen),
+                    color: AppColors.green),
                 const SizedBox(width: 8),
                 _InfoChip(
                     icon: Icons.close_rounded,
                     label: '${course.absent} absent',
-                    color: _kCherry),
+                    color: AppColors.cherry),
                 const Spacer(),
                 Text('${course.attendancePercent}%',
                     style: GoogleFonts.poppins(
@@ -309,23 +303,25 @@ class _CourseCard extends StatelessWidget {
 
               Row(children: [
                 Icon(Icons.person_outline_rounded,
-                    size: 13, color: Colors.grey.shade400),
+                    size: 13, color: AppColors.subtext(context)),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(course.instructor,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                          fontSize: 11, color: Colors.grey.shade500)),
+                          fontSize: 11,
+                          color: AppColors.subtext(context))),
                 ),
                 const SizedBox(width: 12),
                 Icon(Icons.schedule_rounded,
-                    size: 13, color: Colors.grey.shade400),
+                    size: 13, color: AppColors.subtext(context)),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(course.schedule,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                          fontSize: 11, color: Colors.grey.shade500)),
+                          fontSize: 11,
+                          color: AppColors.subtext(context))),
                 ),
               ]),
 
@@ -375,9 +371,9 @@ class _CourseDetailSheet extends StatelessWidget {
       minChildSize:     0.5,
       maxChildSize:     0.95,
       builder: (_, scrollController) => Container(
-        decoration: const BoxDecoration(
-          color: _kWhite,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(children: [
 
@@ -385,7 +381,7 @@ class _CourseDetailSheet extends StatelessWidget {
             margin: const EdgeInsets.only(top: 12),
             width: 40, height: 4,
             decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppColors.divider(context),
                 borderRadius: BorderRadius.circular(2)),
           ),
 
@@ -399,24 +395,25 @@ class _CourseDetailSheet extends StatelessWidget {
                       Text(course.courseCode,
                           style: GoogleFonts.poppins(
                               fontSize: 18, fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1A1A1A))),
+                              color: AppColors.text(context))),
                       Text(course.courseName,
                           style: GoogleFonts.poppins(
-                              fontSize: 13, color: Colors.grey.shade500)),
+                              fontSize: 13,
+                              color: AppColors.subtext(context))),
                     ]),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: _kCherry,
+                  color: AppColors.cherry,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text('${course.attendancePercent}%',
                     style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: _kWhite)),
+                        color: Colors.white)),
               ),
             ]),
           ),
@@ -426,16 +423,16 @@ class _CourseDetailSheet extends StatelessWidget {
             child: Row(children: [
               _SheetStat(label: 'Total',
                   value: '${course.totalClasses}',
-                  color: Colors.grey.shade600),
+                  color: AppColors.subtext(context)),
               _SheetStat(label: 'Attended',
-                  value: '${course.attended}', color: _kGreen),
+                  value: '${course.attended}', color: AppColors.green),
               _SheetStat(label: 'Absent',
-                  value: '${course.absent}', color: _kCherry),
+                  value: '${course.absent}', color: AppColors.cherry),
             ]),
           ),
 
           const SizedBox(height: 8),
-          Divider(color: Colors.grey.shade100, thickness: 1),
+          Divider(color: AppColors.divider(context), thickness: 1),
 
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -444,11 +441,11 @@ class _CourseDetailSheet extends StatelessWidget {
               Text('Attendance History',
                   style: GoogleFonts.poppins(
                       fontSize: 15, fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1A1A))),
+                      color: AppColors.text(context))),
               const Spacer(),
               Text('${course.history.length} sessions',
                   style: GoogleFonts.poppins(
-                      fontSize: 12, color: Colors.grey.shade400)),
+                      fontSize: 12, color: AppColors.subtext(context))),
             ]),
           ),
 
@@ -458,7 +455,7 @@ class _CourseDetailSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: course.history.length,
               separatorBuilder: (_, _) => Divider(
-                  color: Colors.grey.shade100,
+                  color: AppColors.divider(context),
                   thickness: 1, height: 1),
               itemBuilder: (_, i) {
                 final h = course.history[i];
@@ -470,7 +467,7 @@ class _CourseDetailSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: h.attended
                             ? const Color(0xFFE8F5E9)
-                            : const Color(0xFFFFEEF2),
+                            : AppColors.cherryBg,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -478,7 +475,7 @@ class _CourseDetailSheet extends StatelessWidget {
                             ? Icons.check_rounded
                             : Icons.close_rounded,
                         size: 18,
-                        color: h.attended ? _kGreen : _kCherry,
+                        color: h.attended ? AppColors.green : AppColors.cherry,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -490,19 +487,21 @@ class _CourseDetailSheet extends StatelessWidget {
                                 style: GoogleFonts.poppins(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF1A1A1A))),
+                                    color: AppColors.text(context))),
                             if (h.reason != null)
                               Text(h.reason!,
                                   style: GoogleFonts.poppins(
                                       fontSize: 11,
-                                      color: Colors.grey.shade500,
+                                      color: AppColors.subtext(context),
                                       fontStyle: FontStyle.italic)),
                           ]),
                     ),
                     Text(h.attended ? 'Present' : 'Absent',
                         style: GoogleFonts.poppins(
                             fontSize: 12, fontWeight: FontWeight.w600,
-                            color: h.attended ? _kGreen : _kCherry)),
+                            color: h.attended
+                                ? AppColors.green
+                                : AppColors.cherry)),
                   ]),
                 );
               },
@@ -550,7 +549,7 @@ class _SheetStat extends StatelessWidget {
               fontSize: 22, fontWeight: FontWeight.w800, color: color)),
       Text(label,
           style: GoogleFonts.poppins(
-              fontSize: 11, color: Colors.grey.shade400)),
+              fontSize: 11, color: AppColors.subtext(context))),
     ]),
   );
 }

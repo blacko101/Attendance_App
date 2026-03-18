@@ -26,16 +26,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     _tryRestoreSession();
   }
 
-  /// Attempt to restore an existing valid session from storage.
-  /// If a non-expired session exists, navigate directly to the correct
-  /// dashboard — skipping the welcome screen entirely.
   Future<void> _tryRestoreSession() async {
     final user = await _authController.restoreSession();
 
     if (!mounted) return;
 
     if (user != null) {
-      final role = (user.role ?? 'student').toLowerCase().trim();
+      final role = user.role.toLowerCase().trim();
       final String destination;
       switch (role) {
         case 'lecturer':
@@ -56,14 +53,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       return;
     }
 
-    // No valid session — show the welcome screen normally.
     setState(() => _checkingSession = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Show a brief spinner while checking for a saved session.
-    // This prevents the welcome screen from flashing before the redirect.
     if (_checkingSession) {
       return const Scaffold(
         backgroundColor: Color(0xFFFAF9F6),
@@ -74,86 +68,70 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(255, 255, 255, 1),
+      backgroundColor: const Color(0xFFFFFFFF),
       body: Stack(
         children: [
+          // ── Decorative circles (fixed, not constrained) ──
           Positioned(
-            top: 0,
-            left: 0,
+            top: 0, left: 0,
             child: SizedBox(
               width: 180,
-              child: Image.asset(
-                'assets/images/circle_2.png',
-                fit: BoxFit.cover,
-              ),
+              child: Image.asset('assets/images/circle_2.png',
+                  fit: BoxFit.cover),
             ),
           ),
           Positioned(
-            top: 0,
-            left: 0,
+            top: 0, left: 0,
             child: SizedBox(
-              width: 102,
-              height: 150,
-              child: Image.asset(
-                'assets/images/circle_1.png',
-                fit: BoxFit.fill,
-              ),
+              width: 102, height: 150,
+              child: Image.asset('assets/images/circle_1.png',
+                  fit: BoxFit.fill),
             ),
           ),
           Positioned(
-            bottom: 0,
-            right: 0,
+            bottom: 0, right: 0,
             child: SizedBox(
               width: 180,
-              child: Image.asset(
-                'assets/images/circle_3.png',
-                fit: BoxFit.cover,
-              ),
+              child: Image.asset('assets/images/circle_3.png',
+                  fit: BoxFit.cover),
             ),
           ),
           Positioned(
-            bottom: 0,
-            right: 0,
+            bottom: 0, right: 0,
             child: SizedBox(
-              width: 102,
-              height: 140,
-              child: Image.asset(
-                'assets/images/circle_4.png',
-                fit: BoxFit.fill,
-              ),
+              width: 102, height: 140,
+              child: Image.asset('assets/images/circle_4.png',
+                  fit: BoxFit.fill),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: SafeArea(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          constraints: const BoxConstraints(
-                            maxWidth: 150,
-                            maxHeight: 150,
-                          ),
-                          child: Image.asset('assets/images/cu_logo.png'),
+
+          // ── Main content — constrained for web ──
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        constraints: const BoxConstraints(
+                          maxWidth: 150,
+                          maxHeight: 150,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'SMART-ATTEND',
-                      style: GoogleFonts.poppins(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
+                        child: Image.asset('assets/images/cu_logo.png'),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: Text(
+                      const SizedBox(height: 20),
+                      Text(
+                        'SMART-ATTEND',
+                        style: GoogleFonts.poppins(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
                         'Track your attendance and stay on top of your academic progress.',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(
@@ -161,25 +139,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 25),
-                    Text(
-                      'What Time Is Better Than The Present',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic,
+                      const SizedBox(height: 25),
+                      Text(
+                        'What Time Is Better Than The Present',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 80),
-                    CustomButtonWidget(
-                      onPressed: () {
-                        Navigator.pushNamed(context, LoginScreen.id);
-                      },
-                      text: 'Get Started',
-                    ),
-                  ],
+                      const SizedBox(height: 80),
+                      CustomButtonWidget(
+                        onPressed: () {
+                          Navigator.pushNamed(context, LoginScreen.id);
+                        },
+                        text: 'Get Started',
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
