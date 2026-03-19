@@ -35,25 +35,24 @@ const userSchema = new mongoose.Schema(
     },
 
     // ── Student-only fields ────────────────────────────────────────
-    indexNumber: { type: String, trim: true },
-    programme:   { type: String, trim: true },
-    level:       { type: String, trim: true },
+    indexNumber:     { type: String, trim: true },
+    programme:       { type: String, trim: true },
+    level:           { type: String, trim: true },
 
-    // ── Faculty the user belongs to ───────────────────────────────
-    // Students: auto-derived from programme on create.
-    // Lecturers/Deans: set by admin.
-    faculty: { type: String, trim: true },
-
-    // ── Primary department (backwards-compat, mirrors departments[0])
-    department: { type: String, trim: true },
-
-    // ── Lecturers can belong to MULTIPLE departments ───────────────
-    departments: {
+    // ── Course enrollment (student) ────────────────────────────────
+    // Array of courseCode strings the student has registered for.
+    // Populated via POST /api/attendance/enroll.
+    enrolledCourses: {
       type:    [String],
       default: [],
     },
 
-    staffId: { type: String, trim: true },
+    // ── Faculty the user belongs to ───────────────────────────────
+    faculty:     { type: String, trim: true },
+    department:  { type: String, trim: true },
+    departments: { type: [String], default: [] },
+
+    staffId:  { type: String, trim: true },
 
     isActive: {
       type:    Boolean,

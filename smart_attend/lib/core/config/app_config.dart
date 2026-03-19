@@ -29,4 +29,5 @@ class AppConfig {
   static String get authUrl => '$_host/api/auth';
   static String get attendanceUrl => '$_host/api/attendance';
   static String get adminUrl => '$_host/api/admin';
+  static String get deanUrl => '$_host/api/dean';
 }

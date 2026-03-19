@@ -6,11 +6,33 @@ import 'package:smart_attend/features/auth/services/session_service.dart';
 import 'package:smart_attend/features/student/models/course_model.dart';
 
 class StudentController {
+  // ── FETCH DASHBOARD STATS ─────────────────────────────────────────
+  // GET /api/attendance/my-dashboard-stats
+  // Returns attended/absent counts + student name from DB.
+  Future<Map<String, dynamic>> fetchDashboardStats() async {
+    final session = await SessionService.getSession();
+    if (session == null) return {};
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/my-dashboard-stats'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      return {};
+    } catch (_) {
+      return {};
+    }
+  }
+
   // ── FETCH ENROLLED COURSES ────────────────────────────────────────
-  // Derived from the student's own attendance history.
-  // GET /api/attendance/student/:studentId
-  // Groups unique course codes into CourseModel entries so the
-  // dashboard "Today's Classes" section shows real data.
+  // GET /api/attendance/my-enrolled-courses
+  // Returns the courses the student is registered for this semester.
   Future<List<CourseModel>> fetchEnrolledCourses(String studentId) async {
     final session = await SessionService.getSession();
     if (session == null) return [];
@@ -18,7 +40,7 @@ class StudentController {
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/student/$studentId'),
+            Uri.parse('${AppConfig.attendanceUrl}/my-enrolled-courses'),
             headers: {'Authorization': 'Bearer ${session.token}'},
           )
           .timeout(const Duration(seconds: 10));
@@ -26,39 +48,23 @@ class StudentController {
       if (response.statusCode != 200) return [];
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final records = (body['records'] as List? ?? [])
+      final courses = (body['courses'] as List? ?? [])
           .cast<Map<String, dynamic>>();
 
-      // Deduplicate by courseCode — each unique course becomes one entry
-      final Map<String, Map<String, dynamic>> seen = {};
-      for (final r in records) {
-        final sess = r['sessionId'];
-        if (sess == null) continue;
-        final code = (sess is Map ? sess['courseCode'] : null) as String? ?? '';
-        if (code.isNotEmpty && !seen.containsKey(code)) {
-          seen[code] = r;
-        }
-      }
-
-      return seen.entries.map((e) {
-        final r = e.value;
-        final sess = r['sessionId'] as Map<String, dynamic>? ?? {};
-        final code = sess['courseCode'] as String? ?? e.key;
-        final name = sess['courseName'] as String? ?? code;
-
-        return CourseModel(
-          id: r['_id'] as String? ?? code,
-          courseCode: code,
-          courseName: name,
-          instructor: '',
-          // No schedule data in the attendance record — use placeholders
-          // until a dedicated /courses endpoint exists on the backend.
-          startTime: const TimeOfDay(hour: 8, minute: 0),
-          endTime: const TimeOfDay(hour: 9, minute: 30),
-          weekdays: [],
-          room: '',
-        );
-      }).toList();
+      return courses
+          .map(
+            (c) => CourseModel(
+              id: c['_id']?.toString() ?? c['courseCode'] as String? ?? '',
+              courseCode: c['courseCode'] as String? ?? '',
+              courseName: c['courseName'] as String? ?? '',
+              instructor: c['assignedLecturerName'] as String? ?? '',
+              startTime: const TimeOfDay(hour: 8, minute: 0),
+              endTime: const TimeOfDay(hour: 9, minute: 30),
+              weekdays: [],
+              room: '',
+            ),
+          )
+          .toList();
     } catch (_) {
       return [];
     }

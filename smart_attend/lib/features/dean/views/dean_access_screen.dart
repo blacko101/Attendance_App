@@ -87,11 +87,6 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
 
       final msg = e.toString().replaceFirst('Exception: ', '');
 
-      // ── mustChangePassword intercept ──────────────────────────────
-      // The controller throws this sentinel when the backend login
-      // succeeds but mustChangePassword is true. We redirect to
-      // ChangePasswordScreen passing DeanDashboard as the next route,
-      // so after the password is changed the dean lands on their page.
       if (msg == '__MUST_CHANGE_PASSWORD__') {
         Navigator.pushReplacementNamed(
           context,
@@ -101,7 +96,6 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
         return;
       }
 
-      // All other errors — show in the error box on screen
       setState(() => _errorMsg = msg);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -117,7 +111,6 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
     );
   }
 
-  // ── Wide (web) layout ──────────────────────────────────────────────
   Widget _buildWideLayout() {
     return Row(
       children: [
@@ -226,7 +219,6 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
     );
   }
 
-  // ── Narrow (mobile) layout ─────────────────────────────────────────
   Widget _buildNarrowLayout() {
     return SingleChildScrollView(
       child: Column(
@@ -281,7 +273,6 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
     );
   }
 
-  // ── Form ───────────────────────────────────────────────────────────
   Widget _buildForm() {
     return Form(
       key: _formKey,
@@ -370,12 +361,17 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
                 ),
               ),
               child: DropdownButtonFormField<DepartmentModel>(
-                initialValue: _selectedDept,
+                // FIX: `value` not `initialValue` — prevents compile error
+                // and ensures the selected item renders correctly
+                value: _selectedDept,
                 isExpanded: true,
                 icon: const Icon(
                   Icons.keyboard_arrow_down_rounded,
                   color: _kSubtext,
                 ),
+                // FIX overflow: set menuMaxHeight so the popup doesn't
+                // overflow small screens when all 10 departments are shown
+                menuMaxHeight: 320,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(
                     Icons.account_balance_rounded,
@@ -396,31 +392,20 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
                   ),
                 ),
                 style: GoogleFonts.poppins(fontSize: 13, color: _kText),
+                // FIX overflow: each item is a single line — no Column
+                // with two Text widgets that overflow the popup item height
                 items: _departments
                     .map(
                       (dept) => DropdownMenuItem<DepartmentModel>(
                         value: dept,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              dept.name,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: _kText,
-                              ),
-                            ),
-                            if (dept.faculty.isNotEmpty)
-                              Text(
-                                dept.faculty,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: _kSubtext,
-                                ),
-                              ),
-                          ],
+                        child: Text(
+                          dept.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: _kText,
+                          ),
                         ),
                       ),
                     )
@@ -453,12 +438,8 @@ class _DeanAccessScreenState extends State<DeanAccessScreen> {
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _handleLogin(),
             validator: (v) {
-              if (v == null || v.isEmpty) {
-                return 'Please enter your password';
-              }
-              if (v.length < 8) {
-                return 'Password must be at least 8 characters';
-              }
+              if (v == null || v.isEmpty) return 'Please enter your password';
+              if (v.length < 8) return 'Password must be at least 8 characters';
               return null;
             },
             style: GoogleFonts.poppins(fontSize: 14, color: _kText),

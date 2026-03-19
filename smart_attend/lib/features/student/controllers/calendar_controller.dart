@@ -6,23 +6,24 @@ import 'package:smart_attend/features/auth/services/session_service.dart';
 import 'package:smart_attend/features/student/models/attendance_model.dart';
 
 class CalendarController {
-  // ── FETCH ALL ATTENDANCE DATA FOR A GIVEN MONTH ───────────────────
+  // ── FETCH ATTENDANCE DATA FOR A GIVEN MONTH ───────────────────────
+  // Uses the real student ID from session — never hardcoded.
   // GET /api/attendance/student/:studentId
-  // Returns every attendance record for this student, filtered
-  // client-side to the requested month so the calendar can render
-  // the correct dot colours on each day.
   Future<Map<String, DayAttendanceModel>> fetchMonthAttendance(
-    String studentId,
+    String studentId, // kept for API compatibility but we override with session
     int month,
     int year,
   ) async {
     final session = await SessionService.getSession();
     if (session == null) return {};
 
+    // Always use the authenticated user's real ID
+    final realId = session.id;
+
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/student/$studentId'),
+            Uri.parse('${AppConfig.attendanceUrl}/student/$realId'),
             headers: {'Authorization': 'Bearer ${session.token}'},
           )
           .timeout(const Duration(seconds: 10));
@@ -40,7 +41,7 @@ class CalendarController {
         final checkedIn = DateTime.tryParse(checkedInRaw);
         if (checkedIn == null) continue;
 
-        // Only include records that fall in the requested month/year
+        // Filter to requested month/year only
         if (checkedIn.month != month || checkedIn.year != year) continue;
 
         final sess = r['sessionId'] as Map<String, dynamic>? ?? {};
@@ -74,7 +75,6 @@ class CalendarController {
         );
 
         if (data.containsKey(key)) {
-          // Add to existing day
           final existing = data[key]!;
           data[key] = DayAttendanceModel(
             date: existing.date,
@@ -97,18 +97,13 @@ class CalendarController {
   String _key(DateTime d) => '${d.year}-${d.month}-${d.day}';
   String keyFromDate(DateTime d) => _key(d);
 
-  // ── Stats helpers ─────────────────────────────────────────────────
-  int countPresent(Map<String, DayAttendanceModel> data) {
-    return data.values
-        .expand((d) => d.sessions)
-        .where((s) => s.status == AttendanceStatus.present)
-        .length;
-  }
+  int countPresent(Map<String, DayAttendanceModel> data) => data.values
+      .expand((d) => d.sessions)
+      .where((s) => s.status == AttendanceStatus.present)
+      .length;
 
-  int countAbsent(Map<String, DayAttendanceModel> data) {
-    return data.values
-        .expand((d) => d.sessions)
-        .where((s) => s.status == AttendanceStatus.absent)
-        .length;
-  }
+  int countAbsent(Map<String, DayAttendanceModel> data) => data.values
+      .expand((d) => d.sessions)
+      .where((s) => s.status == AttendanceStatus.absent)
+      .length;
 }

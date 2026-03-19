@@ -690,3 +690,173 @@ exports.getMyTimetable = async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────
+//  GET AVAILABLE COURSES FOR ENROLLMENT
+//  GET /api/attendance/available-courses
+//  Auth: student only
+//
+//  Returns all courses from the Course collection that match the
+//  student's programme or faculty. Shows which ones the student
+//  has already enrolled in so the UI can pre-tick them.
+// ─────────────────────────────────────────────────────────────────
+exports.getAvailableCourses = async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+    const User     = require("../models/User");
+
+    if (!Course) {
+      return res.status(200).json({ courses: [] });
+    }
+
+    // Get student profile to find their programme + faculty
+    const student = await User.findById(req.user.id)
+      .select("programme faculty level enrolledCourses");
+    if (!student) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    // Find courses matching the student's programme or faculty
+    const courses = await Course.find({
+      $or: [
+        { programme: student.programme },
+        { faculty:   student.faculty   },
+        { department: student.faculty  },
+      ],
+    }).sort({ courseCode: 1 });
+
+    const enrolled = student.enrolledCourses || [];
+
+    const result = courses.map((c) => ({
+      _id:                  c._id,
+      courseCode:           c.courseCode,
+      courseName:           c.courseName,
+      creditHours:          c.creditHours,
+      level:                c.level,
+      programme:            c.programme,
+      faculty:              c.faculty || c.department,
+      assignedLecturerName: c.assignedLecturerName || "",
+      enrolledStudents:     c.enrolledStudents || 0,
+      isEnrolled:           enrolled.includes(c.courseCode),
+    }));
+
+    return res.status(200).json({
+      count:          result.length,
+      courses:        result,
+      enrolledCodes:  enrolled,
+    });
+  } catch (err) {
+    console.error("getAvailableCourses error:", err.message);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  ENROLL IN COURSES
+//  POST /api/attendance/enroll
+//  Auth: student only
+//  Body: { courseCodes: string[], password: string }
+//
+//  Verifies the student's password, then saves the selected course
+//  codes to the student's enrolledCourses array. Idempotent — re-
+//  enrolling in an already-enrolled course is a no-op.
+// ─────────────────────────────────────────────────────────────────
+exports.enrollCourses = async (req, res) => {
+  try {
+    const bcrypt = require("bcryptjs");
+    const User   = require("../models/User");
+
+    const { courseCodes, password } = req.body;
+
+    if (!Array.isArray(courseCodes) || courseCodes.length === 0) {
+      return res.status(400).json({ message: "Please select at least one course." });
+    }
+    if (!password) {
+      return res.status(400).json({ message: "Password is required to confirm enrollment." });
+    }
+
+    // Verify password — must select password explicitly (select: false in schema)
+    const student = await User.findById(req.user.id).select("+password");
+    if (!student) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, student.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Incorrect password. Enrollment not confirmed." });
+    }
+
+    // Merge with existing enrollments (no duplicates)
+    const existing = student.enrolledCourses || [];
+    const merged   = [...new Set([...existing, ...courseCodes])];
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $set: { enrolledCourses: merged },
+    });
+
+    // Update enrolledStudents count on each course
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+    if (Course) {
+      for (const code of courseCodes) {
+        if (!existing.includes(code)) {
+          await Course.findOneAndUpdate(
+            { courseCode: code },
+            { $inc: { enrolledStudents: 1 } }
+          );
+        }
+      }
+    }
+
+    return res.status(200).json({
+      message:        "Enrollment successful.",
+      enrolledCourses: merged,
+    });
+  } catch (err) {
+    console.error("enrollCourses error:", err.message);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GET STUDENT DASHBOARD STATS
+//  GET /api/attendance/my-dashboard-stats
+//  Auth: student only
+//
+//  Returns overall attended/absent counts and the student's name
+//  so the home tab doesn't need a separate /api/auth/me call.
+// ─────────────────────────────────────────────────────────────────
+exports.getMyDashboardStats = async (req, res) => {
+  try {
+    const User       = require("../models/User");
+    const Attendance = require("../models/Attendance");
+
+    const student = await User.findById(req.user.id)
+      .select("fullName indexNumber programme level faculty enrolledCourses");
+    if (!student) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    // All attendance records for this student
+    const records = await Attendance.find({ studentId: req.user.id });
+    const total    = records.length;
+    const attended = records.filter((r) => r.status === "present").length;
+    const absent   = total - attended;
+
+    return res.status(200).json({
+      fullName:       student.fullName,
+      indexNumber:    student.indexNumber || "",
+      programme:      student.programme   || "",
+      level:          student.level       || "",
+      enrolledCourses: student.enrolledCourses || [],
+      totalClasses:   total,
+      attended,
+      absent,
+      attendanceRate: total === 0 ? 0 : parseFloat(((attended / total) * 100).toFixed(1)),
+    });
+  } catch (err) {
+    console.error("getMyDashboardStats error:", err.message);
+    return res.status(500).json({ message: "Server error." });
+  }
+};

@@ -16,6 +16,10 @@ const {
   getMyStudentTimetable,
   refreshQr,
   getSessionCount,
+  // New enrollment endpoints
+  getAvailableCourses,
+  enrollCourses,
+  getMyDashboardStats,
 } = require("../controllers/attendance.controller");
 
 // ─────────────────────────────────────────────
@@ -36,6 +40,9 @@ router.patch("/sessions/:sessionId/end",              authMiddleware, roleMiddle
 router.post("/checkin",                               authMiddleware, roleMiddleware("student"), checkIn);
 router.get ("/my-enrolled-courses",                   authMiddleware, roleMiddleware("student"), getMyEnrolledCourses);
 router.get ("/my-student-timetable",                  authMiddleware, roleMiddleware("student"), getMyStudentTimetable);
+router.get ("/available-courses",                     authMiddleware, roleMiddleware("student"), getAvailableCourses);
+router.post("/enroll",                                authMiddleware, roleMiddleware("student"), enrollCourses);
+router.get ("/my-dashboard-stats",                    authMiddleware, roleMiddleware("student"), getMyDashboardStats);
 
 // ─────────────────────────────────────────────
 //  SHARED ROUTES
