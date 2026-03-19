@@ -431,23 +431,26 @@ exports.getMyEnrolledCourses = async (req, res) => {
       return res.status(200).json({ courses: [] });
     }
 
-    // Get the student's programme from their user record
-    const student = await User.findById(req.user.id).select("programme level faculty");
+    // Get the student's enrolledCourses array — this is the source of truth.
+    // Only show courses the student has actually registered for.
+    const student = await User.findById(req.user.id)
+      .select("programme level faculty enrolledCourses");
     if (!student) {
       return res.status(404).json({ message: "Student not found." });
     }
 
-    // Find courses matching the student's programme
-    // Also pull in attendance records so we can compute per-course rates
+    const enrolledCodes = student.enrolledCourses || [];
+    if (enrolledCodes.length === 0) {
+      return res.status(200).json({ count: 0, courses: [] });
+    }
+
     const Attendance = require("../models/Attendance");
     const AttendanceSession = require("../models/AttendanceSession");
 
+    // Query ONLY the courses the student is enrolled in — not every
+    // course in their faculty or programme.
     const courses = await Course.find({
-      $or: [
-        { programme: student.programme },
-        { faculty: student.faculty },
-        { department: student.faculty },
-      ],
+      courseCode: { $in: enrolledCodes },
     }).sort({ courseCode: 1 });
 
     // For each course, compute the student's attendance rate
@@ -724,13 +727,17 @@ exports.getAvailableCourses = async (req, res) => {
       return res.status(404).json({ message: "Student not found." });
     }
 
-    // Find courses matching the student's programme or faculty
+    // Filter strictly by programme AND level.
+    // A CS Level 300 student sees only CS Level 300 courses —
+    // not IT or Civil Engineering, and not other year levels.
+    if (!student.programme) {
+      return res.status(400).json({
+        message: "Your profile has no programme set. Contact admin.",
+      });
+    }
     const courses = await Course.find({
-      $or: [
-        { programme: student.programme },
-        { faculty:   student.faculty   },
-        { department: student.faculty  },
-      ],
+      programme: student.programme,
+      level:     student.level,
     }).sort({ courseCode: 1 });
 
     const enrolled = student.enrolledCourses || [];
