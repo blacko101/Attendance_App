@@ -539,7 +539,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                   child: ListView.separated(
                     padding: const EdgeInsets.all(24),
                     itemCount: _schedule.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (_, i) => _ScheduleCard(
                       session: _schedule[i],
                       onMarkNotHeld: (reason) {
@@ -758,7 +758,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                               if (!ctx.mounted) return;
                               if (response.statusCode == 200) {
                                 Navigator.pop(ctx);
-                                if (mounted)
+                                if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -774,6 +774,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                       ),
                                     ),
                                   );
+                                }
                               } else {
                                 final body =
                                     jsonDecode(response.body)
@@ -784,7 +785,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                 );
                               }
                             } catch (_) {
-                              if (ctx.mounted)
+                              if (ctx.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
@@ -799,9 +800,11 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                                     margin: const EdgeInsets.all(16),
                                   ),
                                 );
+                              }
                             } finally {
-                              if (ctx.mounted)
+                              if (ctx.mounted) {
                                 setSheetState(() => isSubmitting = false);
+                              }
                             }
                           },
                     child: isSubmitting

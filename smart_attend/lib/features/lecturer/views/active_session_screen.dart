@@ -134,7 +134,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     // Rotate every 15 seconds
     _qrRotateTimer = Timer.periodic(
       const Duration(seconds: _kQrRotateSeconds),
-      (_) => _rotateQr(),
+          (_) => _rotateQr(),
     );
   }
 
@@ -142,20 +142,28 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
     _codeRotateTimer?.cancel();
     _codeRotateTimer = Timer.periodic(
       const Duration(seconds: _kCodeRotateSeconds),
-      (_) {
-        if (!mounted) return;
-        setState(() {
-          _sixDigitCode = widget.ctrl.generateSixDigitCode();
-        });
-      },
+          (_) => _rotateCode(),
     );
+  }
+
+  // Fetch a fresh code from the backend and update the display.
+  // If the request fails (e.g. brief network blip), we keep showing
+  // the old code — the next rotation attempt will try again.
+  Future<void> _rotateCode() async {
+    if (!mounted) return;
+    final newCode = await widget.ctrl.refreshCode(
+      sessionId: widget.session.sessionId,
+    );
+    if (newCode != null && mounted) {
+      setState(() => _sixDigitCode = newCode);
+    }
   }
 
   void _startCountPoll() {
     _countPollTimer?.cancel();
     _countPollTimer = Timer.periodic(
       const Duration(seconds: _kCountPollSeconds),
-      (_) => _pollStudentCount(),
+          (_) => _pollStudentCount(),
     );
   }
 
@@ -220,7 +228,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
           ),
           content: Text(
             'This will stop students from marking attendance. '
-            'Are you sure?',
+                'Are you sure?',
             style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
           ),
           actions: [
@@ -573,28 +581,28 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
                 .split('')
                 .map(
                   (d) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 5),
-                    width: 46,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: _kCherryBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _kCherry.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        d,
-                        style: GoogleFonts.poppins(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: _kCherry,
-                        ),
-                      ),
+                margin: const EdgeInsets.symmetric(horizontal: 5),
+                width: 46,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: _kCherryBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _kCherry.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    d,
+                    style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: _kCherry,
                     ),
                   ),
                 ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -697,7 +705,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen>
               ),
               Text(
                 '$_studentsMarked'
-                '${widget.session.totalStudents > 0 ? " / ${widget.session.totalStudents}" : ""}',
+                    '${widget.session.totalStudents > 0 ? " / ${widget.session.totalStudents}" : ""}',
                 style: GoogleFonts.poppins(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,

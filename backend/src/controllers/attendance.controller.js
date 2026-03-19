@@ -132,12 +132,19 @@ exports.createSession = async (req, res) => {
     );
 
     session.signature = signature;
+
+    // ── Step 3: Generate 6-digit code and save ────
+    // Server-generated so the backend always knows the current code.
+    // Rotated on request via POST /sessions/:id/refresh-code.
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    session.code = code;
     await session.save();
 
     return res.status(201).json({
       message:   "Attendance session started.",
       sessionId: session._id,
       expiresAt: session.expiresAt,
+      code,       // 6-digit code — display on lecturer screen
       // qrPayload is everything the Flutter lecturer app needs to render the QR.
       // Embed all four fields verbatim — the student app reads them on scan
       // and sends them unchanged to POST /api/attendance/checkin.
@@ -1051,6 +1058,135 @@ exports.getSessionDetail = async (req, res) => {
     });
   } catch (err) {
     console.error("getSessionDetail error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+// ─────────────────────────────────────────────────────────────────
+//  REFRESH 6-DIGIT CODE
+//  POST /api/attendance/sessions/:sessionId/refresh-code
+//  Auth: lecturer only — ownership enforced
+//
+//  Generates a new 6-digit code, saves it to the session, and
+//  returns it so the lecturer screen can display the updated code.
+//  Called every _kCodeRotateSeconds by the active session screen.
+// ─────────────────────────────────────────────────────────────────
+exports.refreshCode = async (req, res) => {
+  try {
+    const session = await AttendanceSession.findOne({
+      _id:        req.params.sessionId,
+      lecturerId: req.user.id,
+      isActive:   true,
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        message: "Session not found, not active, or not yours.",
+      });
+    }
+
+    if (session.expiresAt < new Date()) {
+      session.isActive = false;
+      await session.save();
+      return res.status(400).json({ message: "Session has expired." });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    session.code = code;
+    await session.save();
+
+    return res.status(200).json({ code });
+  } catch (err) {
+    console.error("refreshCode error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  CHECK IN BY 6-DIGIT CODE
+//  POST /api/attendance/checkin-by-code
+//  Auth: student only
+//  Body: { code, studentLat?, studentLng? }
+//
+//  Finds the active session matching the code, validates it,
+//  checks GPS proximity for in-person sessions, then records
+//  attendance. Prevents duplicate check-ins via unique index.
+// ─────────────────────────────────────────────────────────────────
+exports.checkInByCode = async (req, res) => {
+  try {
+    const { code, studentLat, studentLng } = req.body;
+
+    if (!code || String(code).length !== 6) {
+      return res.status(400).json({ message: "A valid 6-digit code is required." });
+    }
+
+    // Find an active session with this code that hasn't expired
+    const session = await AttendanceSession.findOne({
+      code:     String(code),
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        message: "Invalid or expired code. Ask your lecturer for a new one.",
+      });
+    }
+
+    // GPS proximity check for in-person sessions
+    let distanceMetres = null;
+    if (session.type === "inPerson") {
+      if (studentLat == null || studentLng == null) {
+        return res.status(400).json({
+          message: "GPS location required for in-person attendance.",
+        });
+      }
+      distanceMetres = haversine(
+        session.lecturerLat,
+        session.lecturerLng,
+        studentLat,
+        studentLng
+      );
+      if (distanceMetres > MAX_DISTANCE) {
+        return res.status(400).json({
+          message: `You are ${Math.round(distanceMetres)}m away. Must be within ${MAX_DISTANCE}m.`,
+          distanceMetres,
+        });
+      }
+    }
+
+    // Atomically record attendance — unique index prevents duplicates
+    const record = await Attendance.findOneAndUpdate(
+      { sessionId: session._id, studentId: req.user.id },
+      {
+        $setOnInsert: {
+          sessionId:      session._id,
+          studentId:      req.user.id,
+          courseCode:     session.courseCode,
+          status:         "present",
+          method:         "code",
+          distanceMetres,
+          studentLat:     studentLat ?? null,
+          studentLng:     studentLng ?? null,
+          checkedInAt:    new Date(),
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.status(200).json({
+      message:      "Attendance recorded successfully.",
+      attendanceId: record._id,
+      courseCode:   session.courseCode,
+      courseName:   session.courseName,
+    });
+
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message: "You have already checked in for this session.",
+      });
+    }
+    console.error("checkInByCode error:", err.message);
     return res.status(500).json({ error: err.message });
   }
 };

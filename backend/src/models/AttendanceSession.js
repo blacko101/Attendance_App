@@ -46,6 +46,14 @@ const attendanceSessionSchema = new mongoose.Schema(
       default: "",
     },
 
+    // 6-digit attendance code — generated server-side at session creation
+    // and refreshed via POST /api/attendance/sessions/:id/refresh-code.
+    // Students enter this code manually when they cannot scan the QR.
+    code: {
+      type:    String,
+      default: null,
+    },
+
     // Set to false when lecturer presses "End Session" or
     // when the server detects expiresAt has passed.
     // Do NOT use a MongoDB TTL index here — that hard-deletes the

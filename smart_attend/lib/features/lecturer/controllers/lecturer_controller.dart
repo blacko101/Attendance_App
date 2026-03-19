@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:smart_attend/core/config/app_config.dart';
@@ -19,9 +18,9 @@ class LecturerController {
 
     final response = await http
         .get(
-          Uri.parse('${AppConfig.authUrl}/me'),
-          headers: {'Authorization': 'Bearer ${session.token}'},
-        )
+      Uri.parse('${AppConfig.authUrl}/me'),
+      headers: {'Authorization': 'Bearer ${session.token}'},
+    )
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
@@ -62,9 +61,9 @@ class LecturerController {
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/my-weekly-stats'),
-            headers: {'Authorization': 'Bearer ${session.token}'},
-          )
+        Uri.parse('${AppConfig.attendanceUrl}/my-weekly-stats'),
+        headers: {'Authorization': 'Bearer ${session.token}'},
+      )
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return WeeklyStats.empty();
@@ -95,9 +94,9 @@ class LecturerController {
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/my-courses'),
-            headers: {'Authorization': 'Bearer ${session.token}'},
-          )
+        Uri.parse('${AppConfig.attendanceUrl}/my-courses'),
+        headers: {'Authorization': 'Bearer ${session.token}'},
+      )
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return [];
@@ -109,19 +108,19 @@ class LecturerController {
       return courses
           .map(
             (c) => LecturerCourseModel(
-              id: c['_id'] as String? ?? '',
-              courseCode: c['courseCode'] as String? ?? '',
-              courseName: c['courseName'] as String? ?? '',
-              department:
-                  c['department'] as String? ?? c['faculty'] as String? ?? '',
-              totalStudents: (c['enrolledStudents'] as num?)?.toInt() ?? 0,
-              weekdays: [],
-              schedule: '',
-              room: '',
-              startTime: '',
-              endTime: '',
-            ),
-          )
+          id: c['_id'] as String? ?? '',
+          courseCode: c['courseCode'] as String? ?? '',
+          courseName: c['courseName'] as String? ?? '',
+          department:
+          c['department'] as String? ?? c['faculty'] as String? ?? '',
+          totalStudents: (c['enrolledStudents'] as num?)?.toInt() ?? 0,
+          weekdays: [],
+          schedule: '',
+          room: '',
+          startTime: '',
+          endTime: '',
+        ),
+      )
           .toList();
     } catch (_) {
       return [];
@@ -132,8 +131,8 @@ class LecturerController {
   // GET /api/attendance/my-timetable — returns the lecturer's timetable
   // slots, then overlays session status from this week's past sessions.
   Future<List<WeeklySessionModel>> fetchWeeklySchedule(
-    String lecturerId,
-  ) async {
+      String lecturerId,
+      ) async {
     final session = await SessionService.getSession();
     if (session == null) return [];
 
@@ -142,15 +141,15 @@ class LecturerController {
       final responses = await Future.wait([
         http
             .get(
-              Uri.parse('${AppConfig.attendanceUrl}/my-timetable'),
-              headers: {'Authorization': 'Bearer ${session.token}'},
-            )
+          Uri.parse('${AppConfig.attendanceUrl}/my-timetable'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
             .timeout(const Duration(seconds: 10)),
         http
             .get(
-              Uri.parse('${AppConfig.attendanceUrl}/sessions?limit=50'),
-              headers: {'Authorization': 'Bearer ${session.token}'},
-            )
+          Uri.parse('${AppConfig.attendanceUrl}/sessions?limit=50'),
+          headers: {'Authorization': 'Bearer ${session.token}'},
+        )
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -172,15 +171,15 @@ class LecturerController {
       final Map<String, Map<String, dynamic>> sessionByCode = {};
       if (sessionsResp.statusCode == 200) {
         final allSessions =
-            (jsonDecode(sessionsResp.body)['sessions'] as List? ?? [])
-                .cast<Map<String, dynamic>>();
+        (jsonDecode(sessionsResp.body)['sessions'] as List? ?? [])
+            .cast<Map<String, dynamic>>();
         for (final s in allSessions) {
           final created = DateTime.tryParse(s['createdAt'] as String? ?? '');
           if (created == null) continue;
           final d = DateTime(created.year, created.month, created.day);
           final inWeek =
               !d.isBefore(DateTime(monday.year, monday.month, monday.day)) &&
-              !d.isAfter(DateTime(sunday.year, sunday.month, sunday.day));
+                  !d.isAfter(DateTime(sunday.year, sunday.month, sunday.day));
           if (!inWeek) continue;
           final code = s['courseCode'] as String? ?? '';
           // keep the most recent session per course
@@ -285,9 +284,9 @@ class LecturerController {
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/my-course-summary'),
-            headers: {'Authorization': 'Bearer ${session.token}'},
-          )
+        Uri.parse('${AppConfig.attendanceUrl}/my-course-summary'),
+        headers: {'Authorization': 'Bearer ${session.token}'},
+      )
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return [];
@@ -302,16 +301,16 @@ class LecturerController {
         final history = rawHistory
             .map(
               (s) => SessionHistoryModel(
-                sessionId: s['sessionId']?.toString() ?? '',
-                date:
-                    DateTime.tryParse(s['date'] as String? ?? '') ??
-                    DateTime.now(),
-                type: s['type'] as String? ?? 'inPerson',
-                studentsPresent: (s['studentsPresent'] as num?)?.toInt() ?? 0,
-                studentsAbsent: (s['studentsAbsent'] as num?)?.toInt() ?? 0,
-                totalStudents: (s['totalStudents'] as num?)?.toInt() ?? 0,
-              ),
-            )
+            sessionId: s['sessionId']?.toString() ?? '',
+            date:
+            DateTime.tryParse(s['date'] as String? ?? '') ??
+                DateTime.now(),
+            type: s['type'] as String? ?? 'inPerson',
+            studentsPresent: (s['studentsPresent'] as num?)?.toInt() ?? 0,
+            studentsAbsent: (s['studentsAbsent'] as num?)?.toInt() ?? 0,
+            totalStudents: (s['totalStudents'] as num?)?.toInt() ?? 0,
+          ),
+        )
             .toList();
 
         return CourseSummaryModel(
@@ -319,7 +318,7 @@ class LecturerController {
           courseCode: c['courseCode'] as String? ?? '',
           courseName: c['courseName'] as String? ?? '',
           department:
-              c['department'] as String? ?? c['faculty'] as String? ?? '',
+          c['department'] as String? ?? c['faculty'] as String? ?? '',
           totalStudents: (c['totalStudents'] as num?)?.toInt() ?? 0,
           held: (c['held'] as num?)?.toInt() ?? 0,
           inPerson: (c['inPerson'] as num?)?.toInt() ?? 0,
@@ -341,9 +340,9 @@ class LecturerController {
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/detail'),
-            headers: {'Authorization': 'Bearer ${session.token}'},
-          )
+        Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/detail'),
+        headers: {'Authorization': 'Bearer ${session.token}'},
+      )
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return null;
@@ -364,10 +363,33 @@ class LecturerController {
     }
   }
 
-  // ── GENERATE 6-DIGIT CODE ─────────────────────────────────────────
-  String generateSixDigitCode() {
-    final rng = Random.secure();
-    return (100000 + rng.nextInt(900000)).toString();
+  // ── REFRESH 6-DIGIT CODE FROM BACKEND ────────────────────────────
+  // POST /api/attendance/sessions/:sessionId/refresh-code
+  // Called every _kCodeRotateSeconds by the active session screen.
+  // Returns the new code string, or null if the request fails.
+  Future<String?> refreshCode({required String sessionId}) async {
+    final session = await SessionService.getSession();
+    if (session == null) return null;
+
+    try {
+      final response = await http
+          .post(
+        Uri.parse(
+          '${AppConfig.attendanceUrl}/sessions/$sessionId/refresh-code',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.token}',
+        },
+      )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode != 200) return null;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return body['code'] as String?;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── START AN ATTENDANCE SESSION ───────────────────────────────────
@@ -393,20 +415,20 @@ class LecturerController {
     try {
       final response = await http
           .post(
-            Uri.parse('${AppConfig.attendanceUrl}/sessions'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${session.token}',
-            },
-            body: jsonEncode({
-              'courseCode': course.courseCode,
-              'courseName': course.courseName,
-              'type': type == AttendanceType.inPerson ? 'inPerson' : 'online',
-              'durationSeconds': durationSeconds,
-              if (pos != null) 'lecturerLat': pos.latitude,
-              if (pos != null) 'lecturerLng': pos.longitude,
-            }),
-          )
+        Uri.parse('${AppConfig.attendanceUrl}/sessions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.token}',
+        },
+        body: jsonEncode({
+          'courseCode': course.courseCode,
+          'courseName': course.courseName,
+          'type': type == AttendanceType.inPerson ? 'inPerson' : 'online',
+          'durationSeconds': durationSeconds,
+          if (pos != null) 'lecturerLat': pos.latitude,
+          if (pos != null) 'lecturerLng': pos.longitude,
+        }),
+      )
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 201) return null;
@@ -419,6 +441,11 @@ class LecturerController {
         'courseName': course.courseName,
       });
 
+      // Code is now generated server-side and returned in the response.
+      // Never generate it locally — the backend must always know the
+      // current code so students can check in against it.
+      final sixDigitCode = body['code'] as String? ?? '';
+
       return ActiveSessionModel(
         sessionId: sessionId,
         courseCode: course.courseCode,
@@ -426,7 +453,7 @@ class LecturerController {
         type: type,
         method: method,
         qrData: qrData,
-        sixDigitCode: generateSixDigitCode(),
+        sixDigitCode: sixDigitCode,
         totalSeconds: durationSeconds,
         secondsLeft: durationSeconds,
         studentsMarked: 0,
@@ -448,12 +475,12 @@ class LecturerController {
     try {
       final response = await http
           .patch(
-            Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/end'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${session.token}',
-            },
-          )
+        Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/end'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.token}',
+        },
+      )
           .timeout(const Duration(seconds: 10));
       return response.statusCode == 200;
     } catch (_) {
@@ -475,14 +502,14 @@ class LecturerController {
     try {
       final response = await http
           .post(
-            Uri.parse(
-              '${AppConfig.attendanceUrl}/sessions/$sessionId/refresh-qr',
-            ),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${session.token}',
-            },
-          )
+        Uri.parse(
+          '${AppConfig.attendanceUrl}/sessions/$sessionId/refresh-qr',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.token}',
+        },
+      )
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode != 200) return null;
@@ -506,9 +533,9 @@ class LecturerController {
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/count'),
-            headers: {'Authorization': 'Bearer ${session.token}'},
-          )
+        Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/count'),
+        headers: {'Authorization': 'Bearer ${session.token}'},
+      )
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode != 200) return 0;
@@ -519,8 +546,4 @@ class LecturerController {
     }
   }
 
-  // ── REFRESH 6-DIGIT CODE ONLY ─────────────────────────────────────
-  ActiveSessionModel refreshCodes(ActiveSessionModel session) {
-    return session.copyWith(sixDigitCode: generateSixDigitCode());
-  }
 }
