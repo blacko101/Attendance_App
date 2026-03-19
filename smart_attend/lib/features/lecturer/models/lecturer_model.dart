@@ -1,18 +1,20 @@
 // ── Attendance type for a session ──────────────
 enum AttendanceType { inPerson, online }
 
+enum AttendanceMethod { qrCode, sixDigitCode }
+
 // ── A course assigned to the lecturer ──────────
 class LecturerCourseModel {
   final String id;
   final String courseCode;
   final String courseName;
   final String department;
-  final int    totalStudents;
-  final List<int> weekdays;       // 1=Mon…7=Sun
-  final String schedule;          // "Mon, Wed, Fri"
+  final int totalStudents;
+  final List<int> weekdays; // 1=Mon…7=Sun
+  final String schedule; // "Mon, Wed, Fri"
   final String room;
-  final String startTime;         // "10:00 AM"
-  final String endTime;           // "11:30 AM"
+  final String startTime; // "10:00 AM"
+  final String endTime; // "11:30 AM"
 
   const LecturerCourseModel({
     required this.id,
@@ -32,17 +34,17 @@ class LecturerCourseModel {
 enum SessionStatus { upcoming, active, held, notHeld, cancelled }
 
 class WeeklySessionModel {
-  final String         id;
-  final String         courseCode;
-  final String         courseName;
-  final String         room;
-  final DateTime       date;
-  final String         startTime;
-  final String         endTime;
-  final SessionStatus  status;
-  final int?           studentsAttended;
-  final int?           totalStudents;
-  final String?        notHeldReason;
+  final String id;
+  final String courseCode;
+  final String courseName;
+  final String room;
+  final DateTime date;
+  final String startTime;
+  final String endTime;
+  final SessionStatus status;
+  final int? studentsAttended;
+  final int? totalStudents;
+  final String? notHeldReason;
 
   const WeeklySessionModel({
     required this.id,
@@ -65,8 +67,18 @@ class WeeklySessionModel {
 
   String get dateLabel {
     const months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]}';
   }
@@ -74,12 +86,12 @@ class WeeklySessionModel {
 
 // ── Lecturer profile model ──────────────────────
 class LecturerModel {
-  final String  id;
-  final String  fullName;
-  final String  email;
-  final String  staffId;
-  final String  department;
-  final String  role;
+  final String id;
+  final String fullName;
+  final String email;
+  final String staffId;
+  final String department;
+  final String role;
   final String? profileImageUrl;
   final List<String> courseIds;
 
@@ -113,24 +125,26 @@ class LecturerModel {
 
 // ── Active attendance session ───────────────────
 class ActiveSessionModel {
-  final String         sessionId;
-  final String         courseCode;
-  final String         courseName;
+  final String sessionId;
+  final String courseCode;
+  final String courseName;
   final AttendanceType type;
-  final String         qrData;
-  final String         sixDigitCode;
-  final int            totalSeconds;   // lecturer-chosen duration
-  final int            secondsLeft;
-  final int            studentsMarked;
-  final int            totalStudents;
-  final double?        lecturerLat;
-  final double?        lecturerLng;
+  final AttendanceMethod method;
+  final String qrData;
+  final String sixDigitCode;
+  final int totalSeconds;
+  final int secondsLeft;
+  final int studentsMarked;
+  final int totalStudents;
+  final double? lecturerLat;
+  final double? lecturerLng;
 
   const ActiveSessionModel({
     required this.sessionId,
     required this.courseCode,
     required this.courseName,
     required this.type,
+    required this.method,
     required this.qrData,
     required this.sixDigitCode,
     required this.totalSeconds,
@@ -147,21 +161,21 @@ class ActiveSessionModel {
   ActiveSessionModel copyWith({
     String? qrData,
     String? sixDigitCode,
-    int?    secondsLeft,
-    int?    studentsMarked,
-  }) =>
-      ActiveSessionModel(
-        sessionId:      sessionId,
-        courseCode:     courseCode,
-        courseName:     courseName,
-        type:           type,
-        qrData:         qrData      ?? this.qrData,
-        sixDigitCode:   sixDigitCode ?? this.sixDigitCode,
-        totalSeconds:   totalSeconds,
-        secondsLeft:    secondsLeft  ?? this.secondsLeft,
-        studentsMarked: studentsMarked ?? this.studentsMarked,
-        totalStudents:  totalStudents,
-        lecturerLat:    lecturerLat,
-        lecturerLng:    lecturerLng,
-      );
+    int? secondsLeft,
+    int? studentsMarked,
+  }) => ActiveSessionModel(
+    sessionId: sessionId,
+    courseCode: courseCode,
+    courseName: courseName,
+    type: type,
+    method: method,
+    qrData: qrData ?? this.qrData,
+    sixDigitCode: sixDigitCode ?? this.sixDigitCode,
+    totalSeconds: totalSeconds,
+    secondsLeft: secondsLeft ?? this.secondsLeft,
+    studentsMarked: studentsMarked ?? this.studentsMarked,
+    totalStudents: totalStudents,
+    lecturerLat: lecturerLat,
+    lecturerLng: lecturerLng,
+  );
 }

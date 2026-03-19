@@ -12,95 +12,34 @@ const {
   getMySessions,
   getMyCourses,
   getMyTimetable,
+  getMyEnrolledCourses,
+  getMyStudentTimetable,
+  refreshQr,
+  getSessionCount,
 } = require("../controllers/attendance.controller");
 
 // ─────────────────────────────────────────────
-//  POST /api/attendance/sessions
-//  Lecturer starts an attendance session.
+//  LECTURER ROUTES
 // ─────────────────────────────────────────────
-router.post(
-  "/sessions",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  createSession
-);
+router.post("/sessions",                              authMiddleware, roleMiddleware("lecturer"), createSession);
+router.get ("/sessions",                              authMiddleware, roleMiddleware("lecturer"), getMySessions);
+router.get ("/my-courses",                            authMiddleware, roleMiddleware("lecturer"), getMyCourses);
+router.get ("/my-timetable",                          authMiddleware, roleMiddleware("lecturer"), getMyTimetable);
+router.get ("/sessions/:sessionId/students",          authMiddleware, roleMiddleware("lecturer"), getSessionStudents);
+router.get ("/sessions/:sessionId/count",             authMiddleware, roleMiddleware("lecturer"), getSessionCount);
+router.post("/sessions/:sessionId/refresh-qr",        authMiddleware, roleMiddleware("lecturer"), refreshQr);
+router.patch("/sessions/:sessionId/end",              authMiddleware, roleMiddleware("lecturer"), endSession);
 
 // ─────────────────────────────────────────────
-//  GET /api/attendance/sessions
-//  Lecturer views their own past/live sessions.
+//  STUDENT ROUTES
 // ─────────────────────────────────────────────
-router.get(
-  "/sessions",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  getMySessions
-);
+router.post("/checkin",                               authMiddleware, roleMiddleware("student"), checkIn);
+router.get ("/my-enrolled-courses",                   authMiddleware, roleMiddleware("student"), getMyEnrolledCourses);
+router.get ("/my-student-timetable",                  authMiddleware, roleMiddleware("student"), getMyStudentTimetable);
 
 // ─────────────────────────────────────────────
-//  GET /api/attendance/my-courses
-//  Returns courses assigned to the lecturer
-//  from the Course collection.
+//  SHARED ROUTES
 // ─────────────────────────────────────────────
-router.get(
-  "/my-courses",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  getMyCourses
-);
-
-// ─────────────────────────────────────────────
-//  GET /api/attendance/my-timetable
-//  Returns timetable slots for the lecturer
-//  from the Timetable collection.
-// ─────────────────────────────────────────────
-router.get(
-  "/my-timetable",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  getMyTimetable
-);
-
-// ─────────────────────────────────────────────
-//  POST /api/attendance/checkin
-//  Student checks in using QR / 6-digit code payload.
-// ─────────────────────────────────────────────
-router.post(
-  "/checkin",
-  authMiddleware,
-  roleMiddleware("student"),
-  checkIn
-);
-
-// ─────────────────────────────────────────────
-//  GET /api/attendance/sessions/:sessionId/students
-//  Lecturer views who has checked in (live count).
-// ─────────────────────────────────────────────
-router.get(
-  "/sessions/:sessionId/students",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  getSessionStudents
-);
-
-// ─────────────────────────────────────────────
-//  GET /api/attendance/student/:studentId
-//  Attendance history — own record (student) or any (lecturer/admin).
-// ─────────────────────────────────────────────
-router.get(
-  "/student/:studentId",
-  authMiddleware,
-  getStudentAttendance
-);
-
-// ─────────────────────────────────────────────
-//  PATCH /api/attendance/sessions/:sessionId/end
-//  Lecturer manually ends a session before expiry.
-// ─────────────────────────────────────────────
-router.patch(
-  "/sessions/:sessionId/end",
-  authMiddleware,
-  roleMiddleware("lecturer"),
-  endSession
-);
+router.get("/student/:studentId",                     authMiddleware, getStudentAttendance);
 
 module.exports = router;

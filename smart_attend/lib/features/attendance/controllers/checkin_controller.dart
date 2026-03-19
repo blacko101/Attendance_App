@@ -6,7 +6,7 @@ import 'package:smart_attend/features/attendance/models/checkin_model.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
 
 class CheckInController {
-  static const double maxDistanceM = 100.0; // kept for UI display only
+  static const double maxDistanceM = 50.0; // kept for UI display only
 
   // ── REQUEST LOCATION PERMISSION ──────────────────────────────────
   Future<bool> requestLocationPermission() async {

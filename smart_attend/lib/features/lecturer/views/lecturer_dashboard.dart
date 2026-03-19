@@ -1,13 +1,15 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:smart_attend/core/config/app_config.dart';
+import 'package:smart_attend/features/auth/services/location_service.dart';
 import 'package:smart_attend/features/lecturer/controllers/lecturer_controller.dart';
 import 'package:smart_attend/features/lecturer/models/lecturer_model.dart';
+import 'package:smart_attend/features/lecturer/views/active_session_screen.dart';
 import 'package:smart_attend/features/auth/views/mobile/login_screen.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
 
@@ -42,11 +44,6 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
   List<WeeklySessionModel> _schedule = [];
   bool _loading = true;
 
-  // ── Active session state ──
-  ActiveSessionModel? _activeSession;
-  Timer? _countdownTimer;
-  Timer? _refreshTimer;
-
   @override
   void initState() {
     super.initState();
@@ -55,8 +52,6 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
-    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -88,86 +83,77 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
   Future<void> _startSession(
     LecturerCourseModel course,
     AttendanceType type,
+    AttendanceMethod method,
     int durationSeconds,
   ) async {
+    // Fetch location ONCE here for in-person sessions and pass it
+    // directly to startSession() — avoids a second GPS call inside
+    // the controller that can fail independently.
+    Position? position;
+    if (type == AttendanceType.inPerson) {
+      try {
+        position = await LocationService.getCurrentLocation();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                e.toString().replaceFirst('Exception: ', ''),
+                style: GoogleFonts.poppins(fontSize: 13),
+              ),
+              backgroundColor: _kCherry,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(16),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     final session = await _ctrl.startSession(
       course: course,
       type: type,
+      method: method,
       durationSeconds: durationSeconds,
+      position: position,
     );
+
     if (session == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not get location. Enable GPS and retry.'),
+          SnackBar(
+            content: Text(
+              'Failed to start session. Check your connection and try again.',
+              style: GoogleFonts.poppins(fontSize: 13),
+            ),
             backgroundColor: _kCherry,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
           ),
         );
       }
       return;
     }
 
-    setState(() => _activeSession = session);
-    _startTimers();
-  }
-
-  void _startTimers() {
-    _countdownTimer?.cancel();
-    _refreshTimer?.cancel();
-
-    final refreshEvery = _activeSession!.type == AttendanceType.inPerson
-        ? LecturerController.refreshInPerson
-        : LecturerController.refreshOnline;
-
-    // Countdown — tick every second
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      setState(() {
-        if (_activeSession == null) {
-          t.cancel();
-          return;
-        }
-        final left = _activeSession!.secondsLeft - 1;
-        if (left <= 0) {
-          t.cancel();
-          _refreshTimer?.cancel();
-          _activeSession = null; // session ended
-        } else {
-          _activeSession = _activeSession!.copyWith(secondsLeft: left);
-        }
-      });
-    });
-
-    // QR + code refresh
-    _refreshTimer = Timer.periodic(Duration(seconds: refreshEvery), (t) {
-      if (!mounted || _activeSession == null) {
-        t.cancel();
-        return;
-      }
-      setState(() {
-        _activeSession = _ctrl.refreshCodes(_activeSession!);
-      });
-    });
-  }
-
-  // FIX: call the backend PATCH endpoint to mark the session
-  // isActive:false before clearing local state. Without this,
-  // the session stays open in MongoDB indefinitely — students
-  // could continue checking in after the lecturer pressed End.
-  Future<void> _endSession() async {
-    _countdownTimer?.cancel();
-    _refreshTimer?.cancel();
-
-    final sessionId = _activeSession?.sessionId;
-    setState(() => _activeSession = null);
-
-    if (sessionId != null) {
-      // Fire-and-forget: if the API call fails, the session will
-      // still auto-expire via expiresAt on the backend.
-      await _ctrl.endSessionOnBackend(sessionId);
+    if (mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ActiveSessionScreen(
+            session: session,
+            ctrl: _ctrl,
+            onEnded: () => _loadAll(),
+          ),
+        ),
+      );
     }
   }
 
@@ -349,32 +335,29 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                     _buildTodayStatsRow(wide),
                     const SizedBox(height: 28),
 
-                    // Active session banner (if any)
-                    if (_activeSession != null) ...[
-                      _ActiveSessionBanner(
-                        session: _activeSession!,
-                        onEnd: _endSession,
-                      ),
-                      const SizedBox(height: 28),
-                    ],
-
-                    // Generate attendance section
+                    // Mark attendance section
                     Text(
-                      'Generate Attendance',
+                      'Mark Attendance',
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: _kText,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap a course to start marking attendance',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: _kSubtext,
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     ..._courses.map(
                       (c) => _CourseAttendanceCard(
                         course: c,
-                        isActive: _activeSession?.courseCode == c.courseCode,
-                        onStart: _activeSession == null
-                            ? (type, secs) => _startSession(c, type, secs)
-                            : null,
+                        onStart: (type, method, secs) =>
+                            _startSession(c, type, method, secs),
                       ),
                     ),
                   ],
@@ -452,33 +435,98 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
       children: [
         const _PageHeader(
           title: 'Weekly Schedule',
-          subtitle: 'All your classes this week',
+          subtitle: 'Your timetable for this week',
         ),
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(24),
-            itemCount: _schedule.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (_, i) => _ScheduleCard(
-              session: _schedule[i],
-              onMarkNotHeld: (reason) {
-                setState(() {
-                  _schedule[i] = WeeklySessionModel(
-                    id: _schedule[i].id,
-                    courseCode: _schedule[i].courseCode,
-                    courseName: _schedule[i].courseName,
-                    room: _schedule[i].room,
-                    date: _schedule[i].date,
-                    startTime: _schedule[i].startTime,
-                    endTime: _schedule[i].endTime,
-                    status: SessionStatus.notHeld,
-                    totalStudents: _schedule[i].totalStudents,
-                    notHeldReason: reason,
-                  );
-                });
-              },
-            ),
-          ),
+          child: _schedule.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 60,
+                          color: _kSubtext,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No timetable found',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: _kText,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Your scheduled classes will appear here once\n'
+                          'a timetable has been set up by the admin.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: _kSubtext,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kCherry,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                          onPressed: _loadAll,
+                          icon: const Icon(
+                            Icons.refresh_rounded,
+                            color: _kWhite,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Refresh',
+                            style: GoogleFonts.poppins(
+                              color: _kWhite,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  color: _kCherry,
+                  onRefresh: _loadAll,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(24),
+                    itemCount: _schedule.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _ScheduleCard(
+                      session: _schedule[i],
+                      onMarkNotHeld: (reason) {
+                        setState(() {
+                          _schedule[i] = WeeklySessionModel(
+                            id: _schedule[i].id,
+                            courseCode: _schedule[i].courseCode,
+                            courseName: _schedule[i].courseName,
+                            room: _schedule[i].room,
+                            date: _schedule[i].date,
+                            startTime: _schedule[i].startTime,
+                            endTime: _schedule[i].endTime,
+                            status: SessionStatus.notHeld,
+                            totalStudents: _schedule[i].totalStudents,
+                            notHeldReason: reason,
+                          );
+                        });
+                      },
+                    ),
+                  ),
+                ),
         ),
       ],
     );
@@ -1218,319 +1266,20 @@ class _StatCard extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════
-//  ACTIVE SESSION BANNER
-// ══════════════════════════════════════════════
-class _ActiveSessionBanner extends StatelessWidget {
-  final ActiveSessionModel session;
-  final VoidCallback onEnd;
-  const _ActiveSessionBanner({required this.session, required this.onEnd});
-
-  String get _timeDisplay {
-    final m = (session.secondsLeft ~/ 60).toString().padLeft(2, '0');
-    final s = (session.secondsLeft % 60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  Color get _timerColor {
-    if (session.secondsLeft > 120) return _kGreen;
-    if (session.secondsLeft > 30) return _kOrange;
-    return _kCherry;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width >= 700;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _kWhite,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _kCherry.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: _kCherry.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: isWide ? _buildWide(context) : _buildNarrow(context),
-    );
-  }
-
-  Widget _buildWide(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // QR Code
-      _QrPanel(session: session),
-      const SizedBox(width: 28),
-      // Info + code
-      Expanded(
-        child: _InfoPanel(
-          session: session,
-          timerColor: _timerColor,
-          timeDisplay: _timeDisplay,
-          onEnd: onEnd,
-        ),
-      ),
-    ],
-  );
-
-  Widget _buildNarrow(BuildContext context) => Column(
-    children: [
-      _InfoPanel(
-        session: session,
-        timerColor: _timerColor,
-        timeDisplay: _timeDisplay,
-        onEnd: onEnd,
-      ),
-      const SizedBox(height: 20),
-      _QrPanel(session: session),
-    ],
-  );
-}
-
-class _QrPanel extends StatelessWidget {
-  final ActiveSessionModel session;
-  const _QrPanel({required this.session});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: _kWhite,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFEEEEEE)),
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        QrImageView(
-          data: session.qrData,
-          version: QrVersions.auto,
-          size: 180,
-          backgroundColor: _kWhite,
-          eyeStyle: const QrEyeStyle(
-            eyeShape: QrEyeShape.square,
-            color: _kCherry,
-          ),
-          dataModuleStyle: const QrDataModuleStyle(
-            dataModuleShape: QrDataModuleShape.square,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Scan to mark attendance',
-          style: GoogleFonts.poppins(fontSize: 11, color: _kSubtext),
-        ),
-      ],
-    ),
-  );
-}
-
-class _InfoPanel extends StatelessWidget {
-  final ActiveSessionModel session;
-  final Color timerColor;
-  final String timeDisplay;
-  final VoidCallback onEnd;
-  const _InfoPanel({
-    required this.session,
-    required this.timerColor,
-    required this.timeDisplay,
-    required this.onEnd,
-  });
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Course + type badge
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              session.courseName,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: _kText,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: session.type == AttendanceType.inPerson
-                  ? _kCherryBg
-                  : _kGreenBg,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              session.type == AttendanceType.inPerson
-                  ? '📍 In-Person'
-                  : '🌐 Online',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: session.type == AttendanceType.inPerson
-                    ? _kCherry
-                    : _kGreen,
-              ),
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 16),
-
-      // Timer + progress
-      Row(
-        children: [
-          Icon(Icons.timer_rounded, size: 18, color: timerColor),
-          const SizedBox(width: 8),
-          Text(
-            timeDisplay,
-            style: GoogleFonts.poppins(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: timerColor,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'remaining',
-            style: GoogleFonts.poppins(fontSize: 12, color: _kSubtext),
-          ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: LinearProgressIndicator(
-          value: session.progressFraction,
-          backgroundColor: Colors.grey.shade200,
-          valueColor: AlwaysStoppedAnimation<Color>(timerColor),
-          minHeight: 8,
-        ),
-      ),
-      const SizedBox(height: 20),
-
-      // 6-digit code
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _kBg,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '6-Digit Code',
-                    style: GoogleFonts.poppins(fontSize: 11, color: _kSubtext),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    session.sixDigitCode,
-                    style: GoogleFonts.poppins(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: _kCherry,
-                      letterSpacing: 6,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.copy_rounded, color: _kCherry, size: 20),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: session.sixDigitCode));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Code copied to clipboard'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 16),
-
-      // Students marked
-      Row(
-        children: [
-          const Icon(Icons.people_rounded, size: 16, color: _kSubtext),
-          const SizedBox(width: 6),
-          Text(
-            '${session.studentsMarked} / ${session.totalStudents} '
-            'students marked',
-            style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
-          ),
-        ],
-      ),
-      const SizedBox(height: 20),
-
-      // End session button
-      SizedBox(
-        width: double.infinity,
-        height: 46,
-        child: OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: _kCherry),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          icon: const Icon(
-            Icons.stop_circle_outlined,
-            color: _kCherry,
-            size: 18,
-          ),
-          label: Text(
-            'End Session',
-            style: GoogleFonts.poppins(
-              color: _kCherry,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          onPressed: onEnd,
-        ),
-      ),
-    ],
-  );
-}
-
-// ══════════════════════════════════════════════
-//  COURSE ATTENDANCE CARD (generate button)
+//  COURSE ATTENDANCE CARD (Mark Attendance button)
 // ══════════════════════════════════════════════
 class _CourseAttendanceCard extends StatelessWidget {
   final LecturerCourseModel course;
-  final bool isActive;
-  final void Function(AttendanceType, int)? onStart;
-  const _CourseAttendanceCard({
-    required this.course,
-    required this.isActive,
-    required this.onStart,
-  });
+  final void Function(AttendanceType, AttendanceMethod, int) onStart;
+  const _CourseAttendanceCard({required this.course, required this.onStart});
 
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: isActive ? _kCherry.withValues(alpha: 0.05) : _kWhite,
+      color: _kWhite,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: isActive ? _kCherry.withValues(alpha: 0.4) : Colors.transparent,
-      ),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.04),
@@ -1570,79 +1319,53 @@ class _CourseAttendanceCard extends StatelessWidget {
                     '${course.totalStudents} students',
                     style: GoogleFonts.poppins(fontSize: 11, color: _kSubtext),
                   ),
-                  const SizedBox(width: 12),
-                  Icon(Icons.room_outlined, size: 13, color: _kSubtext),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      course.room,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: _kSubtext,
+                  if (course.room.isNotEmpty) ...[
+                    const SizedBox(width: 12),
+                    Icon(Icons.room_outlined, size: 13, color: _kSubtext),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        course.room,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: _kSubtext,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],
           ),
         ),
         const SizedBox(width: 12),
-        if (isActive)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _kGreenBg,
-              borderRadius: BorderRadius.circular(20),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _kCherry,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(
-              'Active',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: _kGreen,
-              ),
-            ),
-          )
-        else if (onStart != null)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kCherry,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            ),
-            onPressed: () => _showStartDialog(context),
-            child: Text(
-              'Start',
-              style: GoogleFonts.poppins(
-                color: _kWhite,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Busy',
-              style: GoogleFonts.poppins(fontSize: 12, color: _kSubtext),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          onPressed: () => _showMarkDialog(context),
+          child: Text(
+            'Mark Attendance',
+            style: GoogleFonts.poppins(
+              color: _kWhite,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
+        ),
       ],
     ),
   );
 
-  void _showStartDialog(BuildContext context) {
+  void _showMarkDialog(BuildContext context) {
     AttendanceType selectedType = AttendanceType.inPerson;
-    double durationMins = 5;
+    AttendanceMethod selectedMethod = AttendanceMethod.qrCode;
+    double durationMins = 3;
 
     showDialog(
       context: context,
@@ -1652,63 +1375,120 @@ class _CourseAttendanceCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
-            'Start Attendance — ${course.courseCode}',
+            'Mark Attendance — ${course.courseCode}',
             style: GoogleFonts.poppins(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Attendance Type',
-                style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
-              ),
-              const SizedBox(height: 10),
-
-              // Type selector
-              Row(
-                children: [
-                  _TypeChip(
-                    label: '📍 In-Person',
-                    selected: selectedType == AttendanceType.inPerson,
-                    onTap: () =>
-                        setD(() => selectedType = AttendanceType.inPerson),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Class type ────────────────────────────────
+                Text(
+                  'Class Type',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kText,
                   ),
-                  const SizedBox(width: 8),
-                  _TypeChip(
-                    label: '🌐 Online',
-                    selected: selectedType == AttendanceType.online,
-                    onTap: () =>
-                        setD(() => selectedType = AttendanceType.online),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-              Text(
-                'Duration: ${durationMins.toInt()} min',
-                style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
-              ),
-              Slider(
-                value: durationMins,
-                min: 1,
-                max: 5,
-                divisions: 4,
-                activeColor: _kCherry,
-                label: '${durationMins.toInt()} min',
-                onChanged: (v) => setD(() => durationMins = v),
-              ),
-              Text(
-                'Max 5 minutes',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  color: Colors.grey.shade400,
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _TypeChip(
+                      label: '📍 In-Person',
+                      selected: selectedType == AttendanceType.inPerson,
+                      onTap: () =>
+                          setD(() => selectedType = AttendanceType.inPerson),
+                    ),
+                    const SizedBox(width: 8),
+                    _TypeChip(
+                      label: '🌐 Online',
+                      selected: selectedType == AttendanceType.online,
+                      onTap: () =>
+                          setD(() => selectedType = AttendanceType.online),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── Duration ──────────────────────────────────
+                Text(
+                  'Duration: ${durationMins.toInt()} min',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kText,
+                  ),
+                ),
+                Slider(
+                  value: durationMins,
+                  min: 3,
+                  max: 6,
+                  divisions: 3, // 3, 4, 5, 6
+                  activeColor: _kCherry,
+                  label: '${durationMins.toInt()} min',
+                  onChanged: (v) => setD(() {
+                    durationMins = v.roundToDouble();
+                  }),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '3 min',
+                      style: GoogleFonts.poppins(
+                        fontSize: 10,
+                        color: _kSubtext,
+                      ),
+                    ),
+                    Text(
+                      '6 min',
+                      style: GoogleFonts.poppins(
+                        fontSize: 10,
+                        color: _kSubtext,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── Attendance method ─────────────────────────
+                Text(
+                  'Check-in Method',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kText,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                _MethodCard(
+                  icon: Icons.qr_code_rounded,
+                  title: 'QR Code',
+                  subtitle: 'Students scan — rotates every 15s',
+                  selected: selectedMethod == AttendanceMethod.qrCode,
+                  onTap: () =>
+                      setD(() => selectedMethod = AttendanceMethod.qrCode),
+                ),
+                const SizedBox(height: 8),
+                _MethodCard(
+                  icon: Icons.pin_rounded,
+                  title: '6-Digit Code',
+                  subtitle: 'Students type the code — changes every 20s',
+                  selected: selectedMethod == AttendanceMethod.sixDigitCode,
+                  onTap: () => setD(
+                    () => selectedMethod = AttendanceMethod.sixDigitCode,
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1727,10 +1507,14 @@ class _CourseAttendanceCard extends StatelessWidget {
               ),
               onPressed: () {
                 Navigator.pop(context);
-                onStart!(selectedType, (durationMins * 60).toInt());
+                onStart(
+                  selectedType,
+                  selectedMethod,
+                  (durationMins * 60).toInt(),
+                );
               },
               child: Text(
-                'Start Session',
+                'Start',
                 style: GoogleFonts.poppins(
                   color: _kWhite,
                   fontWeight: FontWeight.w600,
@@ -1742,6 +1526,77 @@ class _CourseAttendanceCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _MethodCard extends StatelessWidget {
+  final IconData icon;
+  final String title, subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+  const _MethodCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: selected ? _kCherryBg : _kBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected ? _kCherry : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: selected ? _kCherry : _kSubtext.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: selected ? _kWhite : _kSubtext),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? _kCherry : _kText,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: selected
+                        ? _kCherry.withValues(alpha: 0.7)
+                        : _kSubtext,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (selected)
+            const Icon(Icons.check_circle_rounded, color: _kCherry, size: 20),
+        ],
+      ),
+    ),
+  );
 }
 
 class _TypeChip extends StatelessWidget {

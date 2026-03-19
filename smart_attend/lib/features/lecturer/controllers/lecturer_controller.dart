@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:smart_attend/core/config/app_config.dart';
+import 'package:smart_attend/features/auth/services/location_service.dart';
 import 'package:smart_attend/features/lecturer/models/lecturer_model.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
 
@@ -108,8 +109,11 @@ class LecturerController {
   };
 
   // ── FETCH ASSIGNED COURSES ────────────────────────────────────────
-  // GET /api/attendance/my-courses — returns courses from the Course
-  // collection where assignedLecturerId == this lecturer.
+  // Derived from the lecturer's own past sessions — groups unique
+  // course codes so the lecturer can start a new session for any
+  // course they have taught.
+  //
+  // GET /api/attendance/sessions (all own sessions, deduplicated by courseCode)
   Future<List<LecturerCourseModel>> fetchCourses(String lecturerId) async {
     final session = await SessionService.getSession();
     if (session == null) return [];
@@ -152,8 +156,7 @@ class LecturerController {
 
   // ── FETCH WEEKLY SCHEDULE ─────────────────────────────────────────
   // GET /api/attendance/my-timetable — returns the lecturer's timetable
-  // slots from the Timetable collection, then overlays live session
-  // status from past sessions for the current week.
+  // slots, then overlays session status from this week's past sessions.
   Future<List<WeeklySessionModel>> fetchWeeklySchedule(
     String lecturerId,
   ) async {
@@ -161,8 +164,8 @@ class LecturerController {
     if (session == null) return [];
 
     try {
-      // Fetch timetable slots and recent sessions in parallel
-      final results = await Future.wait([
+      // Fetch timetable and recent sessions in parallel
+      final responses = await Future.wait([
         http
             .get(
               Uri.parse('${AppConfig.attendanceUrl}/my-timetable'),
@@ -177,15 +180,17 @@ class LecturerController {
             .timeout(const Duration(seconds: 10)),
       ]);
 
-      final timetableResp = results[0];
-      final sessionsResp = results[1];
+      final timetableResp = responses[0];
+      final sessionsResp = responses[1];
 
       if (timetableResp.statusCode != 200) return [];
 
       final slots = (jsonDecode(timetableResp.body)['slots'] as List? ?? [])
           .cast<Map<String, dynamic>>();
 
-      // Build a map of courseCode → most recent session this week
+      if (slots.isEmpty) return [];
+
+      // Build courseCode → session map for this week
       final now = DateTime.now();
       final monday = now.subtract(Duration(days: now.weekday - 1));
       final sunday = monday.add(const Duration(days: 6));
@@ -204,14 +209,13 @@ class LecturerController {
               !d.isAfter(DateTime(sunday.year, sunday.month, sunday.day));
           if (!inWeek) continue;
           final code = s['courseCode'] as String? ?? '';
+          // keep the most recent session per course
           if (code.isNotEmpty && !sessionByCode.containsKey(code)) {
             sessionByCode[code] = s;
           }
         }
       }
 
-      // Map timetable slots to WeeklySessionModel
-      // Order: Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
       const dayOrder = {
         'Mon': 1,
         'Tue': 2,
@@ -221,8 +225,7 @@ class LecturerController {
         'Sat': 6,
       };
 
-      // Calculate the date for each slot's day in the current week
-      DateTime dateForDay(String day) {
+      DateTime _dateForDay(String day) {
         final offset = (dayOrder[day] ?? 1) - 1;
         return monday.add(Duration(days: offset));
       }
@@ -230,32 +233,38 @@ class LecturerController {
       final result = slots.map((slot) {
         final day = slot['day'] as String? ?? 'Mon';
         final code = slot['courseCode'] as String? ?? '';
-        final slotDate = dateForDay(day);
+        final slotDate = _dateForDay(day);
         final startTime = slot['startTime'] as String? ?? '';
         final endTime = slot['endTime'] as String? ?? '';
 
-        // Determine status from matched session
+        // Determine status
         SessionStatus status = SessionStatus.upcoming;
-        if (slotDate.isBefore(DateTime(now.year, now.month, now.day))) {
-          // Past day — check if we held a session
-          status = sessionByCode.containsKey(code)
-              ? SessionStatus.held
-              : SessionStatus.notHeld;
-        } else if (slotDate.isAtSameMomentAs(
-          DateTime(now.year, now.month, now.day),
-        )) {
-          // Today — check for active session
-          final todaySess = sessionByCode[code];
-          if (todaySess != null) {
-            final isActive = todaySess['isActive'] as bool? ?? false;
+        int? studentsAttended;
+        final dayDate = DateTime(slotDate.year, slotDate.month, slotDate.day);
+        final today = DateTime(now.year, now.month, now.day);
+
+        if (dayDate.isBefore(today)) {
+          // Past day
+          final s = sessionByCode[code];
+          if (s != null) {
+            status = SessionStatus.held;
+          } else {
+            status = SessionStatus.notHeld;
+          }
+        } else if (dayDate.isAtSameMomentAs(today)) {
+          // Today
+          final s = sessionByCode[code];
+          if (s != null) {
+            final isActive = s['isActive'] as bool? ?? false;
             final expiresAt = DateTime.tryParse(
-              todaySess['expiresAt'] as String? ?? '',
+              s['expiresAt'] as String? ?? '',
             );
             final expired = expiresAt != null && expiresAt.isBefore(now);
             status = (isActive && !expired)
                 ? SessionStatus.active
                 : SessionStatus.held;
           }
+          // else stays upcoming
         }
 
         return WeeklySessionModel(
@@ -267,15 +276,16 @@ class LecturerController {
           startTime: startTime,
           endTime: endTime,
           status: status,
+          studentsAttended: studentsAttended,
           totalStudents: (slot['enrolledStudents'] as num?)?.toInt(),
         );
       }).toList();
 
-      // Sort by day order then start time
+      // Sort by day order then startTime
       result.sort((a, b) {
-        final dayA = dayOrder[a.dayLabel] ?? 7;
-        final dayB = dayOrder[b.dayLabel] ?? 7;
-        if (dayA != dayB) return dayA.compareTo(dayB);
+        final da = dayOrder[a.dayLabel] ?? 7;
+        final db = dayOrder[b.dayLabel] ?? 7;
+        if (da != db) return da.compareTo(db);
         return a.startTime.compareTo(b.startTime);
       });
 
@@ -293,30 +303,12 @@ class LecturerController {
   }
 
   // ── GET LOCATION ──────────────────────────────────────────────────
+  // Uses the shared LocationService which handles all permission
+  // checking and throws descriptive exceptions on failure.
   Future<Position?> getCurrentPosition() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return null;
-
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever)
-      return null;
-
     try {
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
+      return await LocationService.getCurrentLocation();
     } catch (_) {
-      try {
-        final last = await Geolocator.getLastKnownPosition();
-        if (last != null) return last;
-      } catch (_) {}
       return null;
     }
   }
@@ -332,10 +324,14 @@ class LecturerController {
   Future<ActiveSessionModel?> startSession({
     required LecturerCourseModel course,
     required AttendanceType type,
+    required AttendanceMethod method,
     required int durationSeconds,
+    Position? position, // pre-fetched by caller — avoids double GPS call
   }) async {
-    Position? pos;
-    if (type == AttendanceType.inPerson) {
+    Position? pos = position;
+
+    // Only fetch location if not already provided and type is in-person
+    if (type == AttendanceType.inPerson && pos == null) {
       pos = await getCurrentPosition();
       if (pos == null) return null;
     }
@@ -377,6 +373,7 @@ class LecturerController {
         courseCode: course.courseCode,
         courseName: course.courseName,
         type: type,
+        method: method,
         qrData: qrData,
         sixDigitCode: generateSixDigitCode(),
         totalSeconds: durationSeconds,
@@ -410,6 +407,64 @@ class LecturerController {
       return response.statusCode == 200;
     } catch (_) {
       return false;
+    }
+  }
+
+  // ── REFRESH QR PAYLOAD ───────────────────────────────────────────
+  // POST /api/attendance/sessions/:sessionId/refresh-qr
+  // Returns a fresh short-lived (20s) signed QR payload for an
+  // active session. Called every 15s by the active session screen.
+  Future<Map<String, dynamic>?> refreshQrPayload({
+    required String sessionId,
+    required String courseName,
+  }) async {
+    final session = await SessionService.getSession();
+    if (session == null) return null;
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(
+              '${AppConfig.attendanceUrl}/sessions/$sessionId/refresh-qr',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${session.token}',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode != 200) return null;
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final qrPayload = body['qrPayload'] as Map<String, dynamic>;
+
+      // Embed courseName for student-side display
+      return {...qrPayload, 'courseName': courseName};
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── GET LIVE STUDENT COUNT ────────────────────────────────────────
+  // GET /api/attendance/sessions/:sessionId/count
+  Future<int> getSessionCount(String sessionId) async {
+    final session = await SessionService.getSession();
+    if (session == null) return 0;
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/count'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode != 200) return 0;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return (body['count'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
     }
   }
 

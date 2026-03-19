@@ -4,7 +4,7 @@ const Attendance        = require("../models/Attendance");
 
 // ── Constants ──────────────────────────────────────────────────────
 const QR_SECRET    = process.env.QR_SECRET || "smart_attend_qr_secret";
-const MAX_DISTANCE = 100; // metres — must match Flutter checkin_controller.dart
+const MAX_DISTANCE = 50; // metres — must match Flutter checkin_controller.dart
 
 // ─────────────────────────────────────────────────────────────────
 //  PRIVATE HELPERS
@@ -408,17 +408,225 @@ exports.getMySessions = async (req, res) => {
   }
 };
 // ─────────────────────────────────────────────────────────────────
-//  GET MY COURSES
+//  GET STUDENT ENROLLED COURSES
+//  GET /api/attendance/my-enrolled-courses
+//  Auth: student only
+//  Returns courses from the Course collection where the student's
+//  programme matches, or uses the Timetable to find their courses.
+// ─────────────────────────────────────────────────────────────────
+exports.getMyEnrolledCourses = async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+    const User     = require("../models/User");
+
+    if (!Course) {
+      return res.status(200).json({ courses: [] });
+    }
+
+    // Get the student's programme from their user record
+    const student = await User.findById(req.user.id).select("programme level faculty");
+    if (!student) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    // Find courses matching the student's programme
+    // Also pull in attendance records so we can compute per-course rates
+    const Attendance = require("../models/Attendance");
+    const AttendanceSession = require("../models/AttendanceSession");
+
+    const courses = await Course.find({
+      $or: [
+        { programme: student.programme },
+        { faculty: student.faculty },
+        { department: student.faculty },
+      ],
+    }).sort({ courseCode: 1 });
+
+    // For each course, compute the student's attendance rate
+    const enriched = await Promise.all(courses.map(async (c) => {
+      // Find sessions for this course
+      const sessions = await AttendanceSession.find({
+        courseCode: c.courseCode,
+        isActive: false,
+      }).select("_id");
+
+      const sessionIds = sessions.map((s) => s._id);
+      const totalClasses = sessionIds.length;
+
+      // Find how many this student attended
+      const attended = await Attendance.countDocuments({
+        sessionId: { $in: sessionIds },
+        studentId: req.user.id,
+        status: "present",
+      });
+
+      const absent = totalClasses - attended;
+      const rate = totalClasses === 0 ? 0 : (attended / totalClasses) * 100;
+
+      return {
+        _id:              c._id,
+        courseCode:       c.courseCode,
+        courseName:       c.courseName,
+        department:       c.department,
+        faculty:          c.faculty,
+        creditHours:      c.creditHours,
+        assignedLecturerName: c.assignedLecturerName,
+        enrolledStudents: c.enrolledStudents,
+        totalClasses,
+        attended,
+        absent,
+        attendanceRate:   parseFloat(rate.toFixed(1)),
+      };
+    }));
+
+    return res.status(200).json({
+      count:   enriched.length,
+      courses: enriched,
+    });
+  } catch (err) {
+    console.error("getMyEnrolledCourses error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GET STUDENT TIMETABLE
+//  GET /api/attendance/my-student-timetable
+//  Auth: student only
+//  Returns timetable slots for the student's programme from the
+//  Timetable collection.
+// ─────────────────────────────────────────────────────────────────
+exports.getMyStudentTimetable = async (req, res) => {
+  try {
+    const mongoose  = require("mongoose");
+    const Timetable = mongoose.models.Timetable;
+    const User      = require("../models/User");
+
+    if (!Timetable) {
+      return res.status(200).json({ slots: [] });
+    }
+
+    const student = await User.findById(req.user.id).select("programme level faculty");
+    if (!student) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    const slots = await Timetable.find({
+      $or: [
+        { programme: student.programme },
+        // fallback: match by level if programme not set on slot
+        ...(student.level ? [{ level: student.level }] : []),
+      ],
+    }).sort({ day: 1, startTime: 1 });
+
+    return res.status(200).json({
+      count: slots.length,
+      slots,
+    });
+  } catch (err) {
+    console.error("getMyStudentTimetable error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  REFRESH QR PAYLOAD
+//  POST /api/attendance/sessions/:sessionId/refresh-qr
+//  Auth: lecturer only — ownership enforced
+//
+//  Returns a fresh short-lived QR payload for an active session.
+//  The session's main expiresAt is unchanged — only the QR window
+//  is refreshed (15-second window). Students scanning an old QR
+//  that has passed its window get "QR expired" until they scan the
+//  new one. This prevents QR screenshot replay attacks.
+// ─────────────────────────────────────────────────────────────────
+exports.refreshQr = async (req, res) => {
+  try {
+    const session = await AttendanceSession.findOne({
+      _id:        req.params.sessionId,
+      lecturerId: req.user.id,
+      isActive:   true,
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        message: "Session not found, not active, or not yours.",
+      });
+    }
+
+    // Has the overall session expired?
+    if (session.expiresAt < new Date()) {
+      session.isActive = false;
+      await session.save();
+      return res.status(400).json({ message: "Session has expired." });
+    }
+
+    // Short-lived QR window: 20 seconds from now, but never beyond
+    // the session's own expiresAt
+    const windowMs  = 20 * 1000;
+    const qrExpires = new Date(
+      Math.min(Date.now() + windowMs, session.expiresAt.getTime())
+    );
+
+    const signature = generateSignature(
+      session._id.toString(),
+      session.courseCode,
+      qrExpires.getTime()
+    );
+
+    return res.status(200).json({
+      qrPayload: {
+        sessionId:  session._id,
+        courseCode: session.courseCode,
+        expiresAt:  qrExpires.getTime(),
+        signature,
+      },
+    });
+  } catch (err) {
+    console.error("refreshQr error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GET LIVE SESSION STUDENT COUNT
+//  GET /api/attendance/sessions/:sessionId/count
+//  Auth: lecturer only — ownership enforced
+//  Returns the current number of students who have checked in.
+// ─────────────────────────────────────────────────────────────────
+exports.getSessionCount = async (req, res) => {
+  try {
+    const session = await AttendanceSession.findOne({
+      _id:        req.params.sessionId,
+      lecturerId: req.user.id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found." });
+    }
+
+    const count = await Attendance.countDocuments({
+      sessionId: req.params.sessionId,
+    });
+
+    return res.status(200).json({ count, isActive: session.isActive });
+  } catch (err) {
+    console.error("getSessionCount error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GET LECTURER'S ASSIGNED COURSES
 //  GET /api/attendance/my-courses
 //  Auth: lecturer only
-//  Returns all courses from the Course collection where
-//  assignedLecturerId matches the authenticated lecturer.
 // ─────────────────────────────────────────────────────────────────
 exports.getMyCourses = async (req, res) => {
   try {
-    // Course model lives in seed.js — access via mongoose.model()
     const mongoose = require("mongoose");
     const Course   = mongoose.models.Course;
+    const User     = require("../models/User");
 
     if (!Course) {
       return res.status(200).json({ courses: [] });
@@ -428,10 +636,30 @@ exports.getMyCourses = async (req, res) => {
       assignedLecturerId: req.user.id,
     }).sort({ courseCode: 1 });
 
-    return res.status(200).json({
-      count: courses.length,
-      courses,
-    });
+    // Compute live enrolled student count for each course by checking
+    // how many students have this course's programme assigned to them.
+    // Falls back to the stored enrolledStudents field if User query fails.
+    const enriched = await Promise.all(courses.map(async (c) => {
+      let count = c.enrolledStudents ?? 0;
+      try {
+        // Count active students whose programme matches this course's programme
+        if (c.programme) {
+          count = await User.countDocuments({
+            role:      "student",
+            isActive:  true,
+            programme: c.programme,
+          });
+        }
+      } catch (_) {
+        // keep stored value on error
+      }
+      return {
+        ...c.toObject(),
+        enrolledStudents: count,
+      };
+    }));
+
+    return res.status(200).json({ count: enriched.length, courses: enriched });
   } catch (err) {
     console.error("getMyCourses error:", err.message);
     return res.status(500).json({ error: err.message });
@@ -439,11 +667,9 @@ exports.getMyCourses = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────
-//  GET MY TIMETABLE
+//  GET LECTURER'S TIMETABLE SLOTS
 //  GET /api/attendance/my-timetable
 //  Auth: lecturer only
-//  Returns all timetable slots from the Timetable collection
-//  where lecturerId matches the authenticated lecturer.
 // ─────────────────────────────────────────────────────────────────
 exports.getMyTimetable = async (req, res) => {
   try {
@@ -458,10 +684,7 @@ exports.getMyTimetable = async (req, res) => {
       lecturerId: req.user.id,
     }).sort({ day: 1, startTime: 1 });
 
-    return res.status(200).json({
-      count: slots.length,
-      slots,
-    });
+    return res.status(200).json({ count: slots.length, slots });
   } catch (err) {
     console.error("getMyTimetable error:", err.message);
     return res.status(500).json({ error: err.message });
