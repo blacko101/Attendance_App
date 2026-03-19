@@ -17,21 +17,21 @@ class AdminController {
       final results = await Future.wait([
         http
             .get(
-          Uri.parse('${AppConfig.adminUrl}/stats'),
-          headers: {'Authorization': 'Bearer ${session.token}'},
-        )
+              Uri.parse('${AppConfig.adminUrl}/stats'),
+              headers: {'Authorization': 'Bearer ${session.token}'},
+            )
             .timeout(const Duration(seconds: 10)),
         http
             .get(
-          Uri.parse('${AppConfig.adminUrl}/users?role=lecturer&limit=100'),
-          headers: {'Authorization': 'Bearer ${session.token}'},
-        )
+              Uri.parse('${AppConfig.adminUrl}/users?role=lecturer&limit=100'),
+              headers: {'Authorization': 'Bearer ${session.token}'},
+            )
             .timeout(const Duration(seconds: 10)),
         http
             .get(
-          Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
-          headers: {'Authorization': 'Bearer ${session.token}'},
-        )
+              Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
+              headers: {'Authorization': 'Bearer ${session.token}'},
+            )
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -184,7 +184,7 @@ class AdminController {
       fullName: u['fullName'] as String? ?? '',
       email: u['email'] as String? ?? '',
       role: UserRole.values.firstWhere(
-            (r) => r.name == roleStr,
+        (r) => r.name == roleStr,
         orElse: () => UserRole.student,
       ),
       status: isActive ? UserStatus.active : UserStatus.suspended,
@@ -196,7 +196,7 @@ class AdminController {
       department: u['department'] as String?,
       departments: departments,
       createdAt:
-      DateTime.tryParse(u['createdAt'] as String? ?? '') ?? DateTime.now(),
+          DateTime.tryParse(u['createdAt'] as String? ?? '') ?? DateTime.now(),
     );
   }
 
@@ -208,24 +208,24 @@ class AdminController {
 
     final response = await http
         .post(
-      Uri.parse('${AppConfig.adminUrl}/users'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.token}',
-      },
-      body: jsonEncode({
-        'fullName': user.fullName,
-        'email': user.email,
-        'role': user.role.name,
-        if (user.indexNumber != null) 'indexNumber': user.indexNumber,
-        if (user.programme != null) 'programme': user.programme,
-        if (user.level != null) 'level': user.level,
-        if (user.staffId != null) 'staffId': user.staffId,
-        if (user.faculty != null) 'faculty': user.faculty,
-        if (user.department != null) 'department': user.department,
-        if (user.departments.isNotEmpty) 'departments': user.departments,
-      }),
-    )
+          Uri.parse('${AppConfig.adminUrl}/users'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.token}',
+          },
+          body: jsonEncode({
+            'fullName': user.fullName,
+            'email': user.email,
+            'role': user.role.name,
+            if (user.indexNumber != null) 'indexNumber': user.indexNumber,
+            if (user.programme != null) 'programme': user.programme,
+            if (user.level != null) 'level': user.level,
+            if (user.staffId != null) 'staffId': user.staffId,
+            if (user.faculty != null) 'faculty': user.faculty,
+            if (user.department != null) 'department': user.department,
+            if (user.departments.isNotEmpty) 'departments': user.departments,
+          }),
+        )
         .timeout(const Duration(seconds: 15));
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -242,22 +242,22 @@ class AdminController {
 
     final response = await http
         .patch(
-      Uri.parse('${AppConfig.adminUrl}/users/${user.id}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.token}',
-      },
-      body: jsonEncode({
-        'fullName': user.fullName,
-        if (user.indexNumber != null) 'indexNumber': user.indexNumber,
-        if (user.programme != null) 'programme': user.programme,
-        if (user.level != null) 'level': user.level,
-        if (user.staffId != null) 'staffId': user.staffId,
-        if (user.faculty != null) 'faculty': user.faculty,
-        if (user.department != null) 'department': user.department,
-        'departments': user.departments,
-      }),
-    )
+          Uri.parse('${AppConfig.adminUrl}/users/${user.id}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.token}',
+          },
+          body: jsonEncode({
+            'fullName': user.fullName,
+            if (user.indexNumber != null) 'indexNumber': user.indexNumber,
+            if (user.programme != null) 'programme': user.programme,
+            if (user.level != null) 'level': user.level,
+            if (user.staffId != null) 'staffId': user.staffId,
+            if (user.faculty != null) 'faculty': user.faculty,
+            if (user.department != null) 'department': user.department,
+            'departments': user.departments,
+          }),
+        )
         .timeout(const Duration(seconds: 15));
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -274,22 +274,22 @@ class AdminController {
 
     await http
         .patch(
-      Uri.parse('${AppConfig.adminUrl}/users/$userId/status'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.token}',
-      },
-      body: jsonEncode({'isActive': status == UserStatus.active}),
-    )
+          Uri.parse('${AppConfig.adminUrl}/users/$userId/status'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.token}',
+          },
+          body: jsonEncode({'isActive': status == UserStatus.active}),
+        )
         .timeout(const Duration(seconds: 10));
   }
 
   // Bulk CSV upload — validates format locally, then creates users
   // one by one via POST /api/admin/users.
   Future<CsvUploadResult> bulkUploadUsers(
-      String csvContent,
-      UserRole role,
-      ) async {
+    String csvContent,
+    UserRole role,
+  ) async {
     final lines = csvContent
         .split('\n')
         .where((l) => l.trim().isNotEmpty)
@@ -372,86 +372,58 @@ class AdminController {
   Future<List<AdminCourseModel>> fetchCourses({
     String? departmentId,
     String? search,
+    String? programme,
+    String? level,
   }) async {
     final session = await SessionService.getSession();
     if (session == null) return [];
 
     try {
-      final results = await Future.wait([
-        http
-            .get(
-          Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
-          headers: {'Authorization': 'Bearer ${session.token}'},
-        )
-            .timeout(const Duration(seconds: 10)),
-        http
-            .get(
-          Uri.parse('${AppConfig.adminUrl}/users?role=lecturer&limit=100'),
-          headers: {'Authorization': 'Bearer ${session.token}'},
-        )
-            .timeout(const Duration(seconds: 10)),
-      ]);
+      final params = <String, String>{};
+      if (search != null && search.isNotEmpty) params['search'] = search;
+      if (programme != null && programme.isNotEmpty)
+        params['programme'] = programme;
+      if (level != null && level.isNotEmpty) params['level'] = level;
 
-      final sessions = results[0].statusCode == 200
-          ? (jsonDecode(results[0].body)['sessions'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          : <Map<String, dynamic>>[];
-      final lecturers = results[1].statusCode == 200
-          ? (jsonDecode(results[1].body)['users'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          : <Map<String, dynamic>>[];
+      final uri = Uri.parse(
+        '${AppConfig.adminUrl}/courses',
+      ).replace(queryParameters: params.isEmpty ? null : params);
 
-      // Build lecturer lookup map
-      final Map<String, Map<String, dynamic>> lectById = {
-        for (final l in lecturers) l['_id'] as String: l,
-      };
+      final response = await http
+          .get(uri, headers: {'Authorization': 'Bearer ${session.token}'})
+          .timeout(const Duration(seconds: 10));
 
-      // Deduplicate by courseCode
-      final Map<String, Map<String, dynamic>> byCode = {};
-      for (final s in sessions) {
-        final code = s['courseCode'] as String? ?? '';
-        if (code.isNotEmpty && !byCode.containsKey(code)) {
-          byCode[code] = s;
-        }
-      }
+      if (response.statusCode != 200) return [];
 
-      var courses = byCode.entries.map((e) {
-        final s = e.value;
-        final lect = s['lecturerId'];
-        final lid = lect is Map ? lect['_id'] as String? : lect as String?;
-        final lDoc = lid != null ? lectById[lid] : null;
-        final dept = lDoc?['department'] as String? ?? '';
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final courses = (body['courses'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
 
+      var result = courses.map((c) {
+        final dept =
+            c['faculty'] as String? ?? c['department'] as String? ?? '';
         return AdminCourseModel(
-          id: s['_id'] as String? ?? e.key,
-          courseCode: e.key,
-          courseName: s['courseName'] as String? ?? e.key,
+          id: c['_id']?.toString() ?? '',
+          courseCode: c['courseCode'] as String? ?? '',
+          courseName: c['courseName'] as String? ?? '',
           departmentId: dept.toLowerCase().replaceAll(' ', '_'),
           departmentName: dept,
-          creditHours: 3,
-          enrolledStudents: 0,
-          semester: '',
-          assignedLecturerId: lid,
-          assignedLecturerName: lDoc?['fullName'] as String?,
+          faculty: dept,
+          programme: c['programme'] as String? ?? '',
+          level: c['level'] as String? ?? '',
+          creditHours: (c['creditHours'] as num?)?.toInt() ?? 3,
+          enrolledStudents: (c['enrolledStudents'] as num?)?.toInt() ?? 0,
+          semester: c['semester'] as String? ?? '',
+          assignedLecturerId: c['assignedLecturerId']?.toString(),
+          assignedLecturerName: c['assignedLecturerName'] as String?,
         );
       }).toList();
 
-      // Apply filters
       if (departmentId != null && departmentId.isNotEmpty) {
-        courses = courses.where((c) => c.departmentId == departmentId).toList();
-      }
-      if (search != null && search.isNotEmpty) {
-        final q = search.toLowerCase();
-        courses = courses
-            .where(
-              (c) =>
-          c.courseCode.toLowerCase().contains(q) ||
-              c.courseName.toLowerCase().contains(q),
-        )
-            .toList();
+        result = result.where((c) => c.departmentId == departmentId).toList();
       }
 
-      return courses;
+      return result;
     } catch (_) {
       return [];
     }
@@ -462,13 +434,15 @@ class AdminController {
   // This method is kept for UI compatibility — it records the intent
   // but can't persist to a courses collection until the backend adds one.
   Future<AdminCourseModel> createCourse(AdminCourseModel course) async {
-    // Return the course with a timestamp-based id so the UI can show it
     return AdminCourseModel(
       id: 'local_${DateTime.now().millisecondsSinceEpoch}',
       courseCode: course.courseCode,
       courseName: course.courseName,
       departmentId: course.departmentId,
       departmentName: course.departmentName,
+      faculty: course.faculty,
+      programme: course.programme,
+      level: course.level,
       creditHours: course.creditHours,
       enrolledStudents: 0,
       semester: course.semester,
@@ -478,9 +452,9 @@ class AdminController {
   }
 
   Future<AdminCourseModel> assignLecturer(
-      AdminCourseModel course,
-      ManagedUserModel lecturer,
-      ) async {
+    AdminCourseModel course,
+    ManagedUserModel lecturer,
+  ) async {
     return course.copyWith(
       assignedLecturerId: lecturer.id,
       assignedLecturerName: lecturer.fullName,
@@ -491,8 +465,6 @@ class AdminController {
 
   // ─────────────────────────────────────────────
   //  TIMETABLE
-  //  Derived from sessions — no timetable collection yet.
-  // ─────────────────────────────────────────────
   Future<List<TimetableSlotModel>> fetchTimetable({
     String? programme,
     String? level,
@@ -502,51 +474,53 @@ class AdminController {
     if (session == null) return [];
 
     try {
+      final params = <String, String>{};
+      if (programme != null && programme.isNotEmpty)
+        params['programme'] = programme;
+      if (level != null && level.isNotEmpty) params['level'] = level;
+      if (semester != null && semester.isNotEmpty)
+        params['semester'] = semester;
+
+      final uri = Uri.parse(
+        '${AppConfig.adminUrl}/timetable',
+      ).replace(queryParameters: params.isEmpty ? null : params);
+
       final response = await http
-          .get(
-        Uri.parse('${AppConfig.adminUrl}/sessions?limit=200'),
-        headers: {'Authorization': 'Bearer ${session.token}'},
-      )
+          .get(uri, headers: {'Authorization': 'Bearer ${session.token}'})
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) return [];
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final sessions = (body['sessions'] as List? ?? [])
-          .cast<Map<String, dynamic>>();
+      final slots = (body['slots'] as List? ?? []).cast<Map<String, dynamic>>();
 
-      return sessions.map((s) {
-        final lect = s['lecturerId'];
-        final lectName = lect is Map ? lect['fullName'] as String? ?? '' : '';
-        final created =
-            DateTime.tryParse(s['createdAt'] as String? ?? '') ??
-                DateTime.now();
-        final expires = DateTime.tryParse(s['expiresAt'] as String? ?? '');
-        final dayIdx = created.weekday - 1;
-        const dayMap = [
-          TimetableDay.mon,
-          TimetableDay.tue,
-          TimetableDay.wed,
-          TimetableDay.thu,
-          TimetableDay.fri,
-          TimetableDay.sat,
-        ];
+      const dayMap = {
+        'Mon': TimetableDay.mon,
+        'Tue': TimetableDay.tue,
+        'Wed': TimetableDay.wed,
+        'Thu': TimetableDay.thu,
+        'Fri': TimetableDay.fri,
+        'Sat': TimetableDay.sat,
+      };
 
-        return TimetableSlotModel(
-          id: s['_id'] as String? ?? '',
-          courseId: s['_id'] as String? ?? '',
-          courseCode: s['courseCode'] as String? ?? '',
-          courseName: s['courseName'] as String? ?? '',
-          lecturerName: lectName,
-          day: dayMap[dayIdx.clamp(0, 5)],
-          startTime: _fmtTime(created),
-          endTime: expires != null ? _fmtTime(expires) : '',
-          room: s['type'] == 'online' ? 'Online' : 'On Campus',
-          level: '',
-          programme: '',
-          semester: '',
-        );
-      }).toList();
+      return slots
+          .map(
+            (s) => TimetableSlotModel(
+              id: s['_id']?.toString() ?? '',
+              courseId: s['courseId']?.toString() ?? '',
+              courseCode: s['courseCode'] as String? ?? '',
+              courseName: s['courseName'] as String? ?? '',
+              lecturerName: s['lecturerName'] as String? ?? 'TBA',
+              day: dayMap[s['day']] ?? TimetableDay.mon,
+              startTime: s['startTime'] as String? ?? '',
+              endTime: s['endTime'] as String? ?? '',
+              room: s['room'] as String? ?? '',
+              level: s['level'] as String? ?? '',
+              programme: s['programme'] as String? ?? '',
+              semester: s['semester'] as String? ?? '',
+            ),
+          )
+          .toList();
     } catch (_) {
       return [];
     }
@@ -560,21 +534,65 @@ class AdminController {
   }
 
   Future<TimetableSlotModel> createTimetableSlot(
-      TimetableSlotModel slot,
-      ) async {
+    TimetableSlotModel slot,
+  ) async {
+    final session = await SessionService.getSession();
+    if (session == null) throw Exception('Session expired.');
+
+    final response = await http
+        .post(
+          Uri.parse('${AppConfig.adminUrl}/timetable'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.token}',
+          },
+          body: jsonEncode({
+            'courseId': slot.courseId,
+            'courseCode': slot.courseCode,
+            'courseName': slot.courseName,
+            'lecturerName': slot.lecturerName,
+            'day': slot.day.label,
+            'startTime': slot.startTime,
+            'endTime': slot.endTime,
+            'room': slot.room,
+            'level': slot.level,
+            'programme': slot.programme,
+            'semester': slot.semester,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 201) {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(body['message'] ?? 'Failed to create slot.');
+    }
+
+    final s =
+        (jsonDecode(response.body) as Map<String, dynamic>)['slot']
+            as Map<String, dynamic>;
+
+    const dayMap = {
+      'Mon': TimetableDay.mon,
+      'Tue': TimetableDay.tue,
+      'Wed': TimetableDay.wed,
+      'Thu': TimetableDay.thu,
+      'Fri': TimetableDay.fri,
+      'Sat': TimetableDay.sat,
+    };
+
     return TimetableSlotModel(
-      id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-      courseId: slot.courseId,
-      courseCode: slot.courseCode,
-      courseName: slot.courseName,
-      lecturerName: slot.lecturerName,
-      day: slot.day,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      room: slot.room,
-      level: slot.level,
-      programme: slot.programme,
-      semester: slot.semester,
+      id: s['_id']?.toString() ?? '',
+      courseId: s['courseId']?.toString() ?? '',
+      courseCode: s['courseCode'] as String? ?? '',
+      courseName: s['courseName'] as String? ?? '',
+      lecturerName: s['lecturerName'] as String? ?? 'TBA',
+      day: dayMap[s['day']] ?? TimetableDay.mon,
+      startTime: s['startTime'] as String? ?? '',
+      endTime: s['endTime'] as String? ?? '',
+      room: s['room'] as String? ?? '',
+      level: s['level'] as String? ?? '',
+      programme: s['programme'] as String? ?? '',
+      semester: s['semester'] as String? ?? '',
     );
   }
 

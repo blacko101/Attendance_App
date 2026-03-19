@@ -159,124 +159,124 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     onPressed: isSubmitting
                         ? null
                         : () async {
-                      final current = currentPwCtrl.text.trim();
-                      final newPw = newPwCtrl.text;
-                      final confirm = confirmPwCtrl.text;
+                            final current = currentPwCtrl.text.trim();
+                            final newPw = newPwCtrl.text;
+                            final confirm = confirmPwCtrl.text;
 
-                      void showErr(String msg) =>
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                msg,
-                                style: GoogleFonts.poppins(fontSize: 13),
-                              ),
-                              backgroundColor: _kCherry,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              margin: const EdgeInsets.all(16),
-                            ),
-                          );
-
-                      if (current.isEmpty ||
-                          newPw.isEmpty ||
-                          confirm.isEmpty) {
-                        showErr('Please fill in all fields.');
-                        return;
-                      }
-                      if (newPw.length < 8) {
-                        showErr(
-                          'New password must be at least 8 characters.',
-                        );
-                        return;
-                      }
-                      if (newPw != confirm) {
-                        showErr('New passwords do not match.');
-                        return;
-                      }
-
-                      setSheetState(() => isSubmitting = true);
-                      try {
-                        final session = await SessionService.getSession();
-                        if (session == null) {
-                          Navigator.pop(ctx);
-                          return;
-                        }
-                        final response = await http
-                            .post(
-                          Uri.parse(
-                            '${AppConfig.authUrl}/change-password',
-                          ),
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization':
-                            'Bearer ${session.token}',
-                          },
-                          body: jsonEncode({
-                            'currentPassword': current,
-                            'newPassword': newPw,
-                          }),
-                        )
-                            .timeout(const Duration(seconds: 15));
-
-                        if (!ctx.mounted) return;
-                        if (response.statusCode == 200) {
-                          Navigator.pop(ctx);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Password updated successfully',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 13,
+                            void showErr(String msg) =>
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      msg,
+                                      style: GoogleFonts.poppins(fontSize: 13),
+                                    ),
+                                    backgroundColor: _kCherry,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    margin: const EdgeInsets.all(16),
                                   ),
-                                ),
-                                backgroundColor: _kGreen,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            );
-                          }
-                        } else {
-                          final body =
-                          jsonDecode(response.body)
-                          as Map<String, dynamic>;
-                          showErr(
-                            body['message'] as String? ??
-                                'Failed to change password.',
-                          );
-                        }
-                      } catch (_) {
-                        if (ctx.mounted) {
-                          showErr(
-                            'Connection error. Check your internet.',
-                          );
-                        }
-                      } finally {
-                        if (ctx.mounted) {
-                          setSheetState(() => isSubmitting = false);
-                        }
-                      }
-                    },
+                                );
+
+                            if (current.isEmpty ||
+                                newPw.isEmpty ||
+                                confirm.isEmpty) {
+                              showErr('Please fill in all fields.');
+                              return;
+                            }
+                            if (newPw.length < 8) {
+                              showErr(
+                                'New password must be at least 8 characters.',
+                              );
+                              return;
+                            }
+                            if (newPw != confirm) {
+                              showErr('New passwords do not match.');
+                              return;
+                            }
+
+                            setSheetState(() => isSubmitting = true);
+                            try {
+                              final session = await SessionService.getSession();
+                              if (session == null) {
+                                Navigator.pop(ctx);
+                                return;
+                              }
+                              final response = await http
+                                  .post(
+                                    Uri.parse(
+                                      '${AppConfig.authUrl}/change-password',
+                                    ),
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization':
+                                          'Bearer ${session.token}',
+                                    },
+                                    body: jsonEncode({
+                                      'currentPassword': current,
+                                      'newPassword': newPw,
+                                    }),
+                                  )
+                                  .timeout(const Duration(seconds: 15));
+
+                              if (!ctx.mounted) return;
+                              if (response.statusCode == 200) {
+                                Navigator.pop(ctx);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Password updated successfully',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      backgroundColor: _kGreen,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } else {
+                                final body =
+                                    jsonDecode(response.body)
+                                        as Map<String, dynamic>;
+                                showErr(
+                                  body['message'] as String? ??
+                                      'Failed to change password.',
+                                );
+                              }
+                            } catch (_) {
+                              if (ctx.mounted) {
+                                showErr(
+                                  'Connection error. Check your internet.',
+                                );
+                              }
+                            } finally {
+                              if (ctx.mounted) {
+                                setSheetState(() => isSubmitting = false);
+                              }
+                            }
+                          },
                     child: isSubmitting
                         ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: _kWhite,
-                        strokeWidth: 2,
-                      ),
-                    )
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: _kWhite,
+                              strokeWidth: 2,
+                            ),
+                          )
                         : Text(
-                      'Update Password',
-                      style: GoogleFonts.poppins(
-                        color: _kWhite,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                            'Update Password',
+                            style: GoogleFonts.poppins(
+                              color: _kWhite,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -300,7 +300,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             Navigator.pushNamedAndRemoveUntil(
               context,
               LoginScreen.id,
-                  (_) => false,
+              (_) => false,
             );
           }
         },
@@ -322,21 +322,21 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       backgroundColor: _kBg,
       body: isWide
           ? Row(
-        children: [
-          _SideNav(
-            index: _navIndex,
-            onTap: (i) => setState(() => _navIndex = i),
-            onLogout: _logout,
-            onChangePassword: _handleChangePassword,
-          ),
-          Expanded(child: _buildPage()),
-        ],
-      )
+              children: [
+                _SideNav(
+                  index: _navIndex,
+                  onTap: (i) => setState(() => _navIndex = i),
+                  onLogout: _logout,
+                  onChangePassword: _handleChangePassword,
+                ),
+                Expanded(child: _buildPage()),
+              ],
+            )
           : Scaffold(
-        backgroundColor: _kBg,
-        body: _buildPage(),
-        bottomNavigationBar: _buildBottomNav(),
-      ),
+              backgroundColor: _kBg,
+              body: _buildPage(),
+              bottomNavigationBar: _buildBottomNav(),
+            ),
     );
   }
 
@@ -412,14 +412,14 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         _PageHeader(
           title: 'School-Wide Analytics',
           subtitle:
-          'Full system overview · '
+              'Full system overview · '
               '${a.totalDepartments} departments',
           action: MediaQuery.of(context).size.width < 960
               ? IconButton(
-            icon: const Icon(Icons.lock_outline_rounded, color: _kCherry),
-            tooltip: 'Change Password',
-            onPressed: _handleChangePassword,
-          )
+                  icon: const Icon(Icons.lock_outline_rounded, color: _kCherry),
+                  tooltip: 'Change Password',
+                  onPressed: _handleChangePassword,
+                )
               : null,
         ),
         Expanded(
@@ -525,14 +525,14 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             .entries
             .map(
               (e) => Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: e.key < gauges.length - 1 ? 14 : 0,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: e.key < gauges.length - 1 ? 14 : 0,
+                  ),
+                  child: _GaugeCard(gauge: e.value),
+                ),
               ),
-              child: _GaugeCard(gauge: e.value),
-            ),
-          ),
-        )
+            )
             .toList(),
       );
     }
@@ -540,10 +540,10 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       children: gauges
           .map(
             (g) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _GaugeCard(gauge: g),
-        ),
-      )
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _GaugeCard(gauge: g),
+            ),
+          )
           .toList(),
     );
   }
@@ -570,7 +570,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         ),
         const Divider(),
         ...a.byDepartment.map(
-              (d) => Padding(
+          (d) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
@@ -667,16 +667,16 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     _Chip(
                       'All Roles',
                       _userRoleFilter == null,
-                          () => setState(() => _userRoleFilter = null),
+                      () => setState(() => _userRoleFilter = null),
                     ),
                     const SizedBox(width: 6),
                     ...UserRole.values.map(
-                          (r) => Padding(
+                      (r) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: _Chip(
                           r.label,
                           _userRoleFilter == r,
-                              () => setState(() => _userRoleFilter = r),
+                          () => setState(() => _userRoleFilter = r),
                         ),
                       ),
                     ),
@@ -684,16 +684,16 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     _Chip(
                       'All Status',
                       _userStatusFilter == null,
-                          () => setState(() => _userStatusFilter = null),
+                      () => setState(() => _userStatusFilter = null),
                     ),
                     const SizedBox(width: 6),
                     ...UserStatus.values.map(
-                          (s) => Padding(
+                      (s) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: _Chip(
                           s.label,
                           _userStatusFilter == s,
-                              () => setState(() => _userStatusFilter = s),
+                          () => setState(() => _userStatusFilter = s),
                         ),
                       ),
                     ),
@@ -707,32 +707,32 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           child: filtered.isEmpty
               ? _empty('No users match your filters')
               : ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _UserCard(
-              user: filtered[i],
-              lecturers: _lecturers,
-              onUpdated: (updated) {
-                final idx = _users.indexWhere((u) => u.id == updated.id);
-                if (idx >= 0) {
-                  setState(() => _users[idx] = updated);
-                }
-              },
-              onStatusChange: (userId, status) async {
-                await _ctrl.updateUserStatus(userId, status);
-                final idx = _users.indexWhere((u) => u.id == userId);
-                if (idx >= 0) {
-                  setState(
-                        () => _users[idx] = _users[idx].copyWith(
-                      status: status,
-                    ),
-                  );
-                }
-              },
-              ctrl: _ctrl,
-            ),
-          ),
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => _UserCard(
+                    user: filtered[i],
+                    lecturers: _lecturers,
+                    onUpdated: (updated) {
+                      final idx = _users.indexWhere((u) => u.id == updated.id);
+                      if (idx >= 0) {
+                        setState(() => _users[idx] = updated);
+                      }
+                    },
+                    onStatusChange: (userId, status) async {
+                      await _ctrl.updateUserStatus(userId, status);
+                      final idx = _users.indexWhere((u) => u.id == userId);
+                      if (idx >= 0) {
+                        setState(
+                          () => _users[idx] = _users[idx].copyWith(
+                            status: status,
+                          ),
+                        );
+                      }
+                    },
+                    ctrl: _ctrl,
+                  ),
+                ),
         ),
         Container(
           color: _kWhite,
@@ -827,7 +827,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         _PageHeader(
           title: 'Course Management',
           subtitle:
-          '${_courses.length} courses · '
+              '${_courses.length} courses · '
               '$unassigned unassigned',
           action: _ActionButton(
             label: 'Add Course',
@@ -853,16 +853,16 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     _Chip(
                       'All Departments',
                       _courseDeptFilter.isEmpty,
-                          () => setState(() => _courseDeptFilter = ''),
+                      () => setState(() => _courseDeptFilter = ''),
                     ),
                     const SizedBox(width: 6),
                     ...depts.map(
-                          (d) => Padding(
+                      (d) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: _Chip(
                           d.split(' ').first,
                           _courseDeptFilter == d,
-                              () => setState(() => _courseDeptFilter = d),
+                          () => setState(() => _courseDeptFilter = d),
                         ),
                       ),
                     ),
@@ -876,34 +876,34 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           child: filtered.isEmpty
               ? _empty('No courses match your filters')
               : ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _CourseCard(
-              course: filtered[i],
-              lecturers: _lecturers,
-              onAssign: (course) async {
-                final updated = await _ctrl.assignLecturer(
-                  course,
-                  _lecturers.firstWhere(
-                        (l) => l.id == course.assignedLecturerId,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _CourseCard(
+                    course: filtered[i],
+                    lecturers: _lecturers,
+                    onAssign: (course) async {
+                      final updated = await _ctrl.assignLecturer(
+                        course,
+                        _lecturers.firstWhere(
+                          (l) => l.id == course.assignedLecturerId,
+                        ),
+                      );
+                      final idx = _courses.indexWhere(
+                        (c) => c.id == updated.id,
+                      );
+                      if (idx >= 0) {
+                        setState(() => _courses[idx] = updated);
+                      }
+                    },
+                    onDelete: (courseId) {
+                      setState(
+                        () => _courses.removeWhere((c) => c.id == courseId),
+                      );
+                    },
+                    ctrl: _ctrl,
                   ),
-                );
-                final idx = _courses.indexWhere(
-                      (c) => c.id == updated.id,
-                );
-                if (idx >= 0) {
-                  setState(() => _courses[idx] = updated);
-                }
-              },
-              onDelete: (courseId) {
-                setState(
-                      () => _courses.removeWhere((c) => c.id == courseId),
-                );
-              },
-              ctrl: _ctrl,
-            ),
-          ),
+                ),
         ),
       ],
     );
@@ -958,16 +958,16 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                 _Chip(
                   'All',
                   _ttProgramme.isEmpty,
-                      () => setState(() => _ttProgramme = ''),
+                  () => setState(() => _ttProgramme = ''),
                 ),
                 const SizedBox(width: 6),
                 ...programmes.map(
-                      (p) => Padding(
+                  (p) => Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: _Chip(
                       p.replaceAll('BSc. ', ''),
                       _ttProgramme == p,
-                          () => setState(() => _ttProgramme = p),
+                      () => setState(() => _ttProgramme = p),
                     ),
                   ),
                 ),
@@ -980,16 +980,16 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                 _Chip(
                   'All',
                   _ttLevel.isEmpty,
-                      () => setState(() => _ttLevel = ''),
+                  () => setState(() => _ttLevel = ''),
                 ),
                 const SizedBox(width: 6),
                 ...levels.map(
-                      (l) => Padding(
+                  (l) => Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: _Chip(
                       'Level $l',
                       _ttLevel == l,
-                          () => setState(() => _ttLevel = l),
+                      () => setState(() => _ttLevel = l),
                     ),
                   ),
                 ),
@@ -1029,13 +1029,13 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                       ),
                     ),
                     ...slots.map(
-                          (s) => Padding(
+                      (s) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _TimetableSlotCard(
                           slot: s,
                           onDelete: (id) {
                             setState(
-                                  () => _timetable.removeWhere((s) => s.id == id),
+                              () => _timetable.removeWhere((s) => s.id == id),
                             );
                           },
                           ctrl: _ctrl,
@@ -1154,7 +1154,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             SnackBar(
               content: Text(
                 '${result.successCount} users imported, '
-                    '${result.errorCount} errors',
+                '${result.errorCount} errors',
                 style: GoogleFonts.poppins(fontSize: 13),
               ),
               backgroundColor: result.errorCount == 0 ? _kGreen : _kOrange,
@@ -1174,14 +1174,14 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             .entries
             .map(
               (e) => Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: e.key < items.length - 1 ? 14 : 0,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: e.key < items.length - 1 ? 14 : 0,
+                  ),
+                  child: _StatCard(stat: e.value),
+                ),
               ),
-              child: _StatCard(stat: e.value),
-            ),
-          ),
-        )
+            )
             .toList(),
       );
     }
@@ -1941,7 +1941,7 @@ class _CourseCard extends StatelessWidget {
                 builder: (_) => _ConfirmDialog(
                   title: 'Delete Course',
                   message:
-                  'Delete ${course.courseCode}? '
+                      'Delete ${course.courseCode}? '
                       'This cannot be undone.',
                   onConfirm: () => onDelete(course.id),
                   destructive: true,
@@ -1995,18 +1995,18 @@ class _CourseCard extends StatelessWidget {
     final eligible = lecturers
         .where(
           (l) =>
-      l.departments.contains(course.departmentName) ||
-          l.department == course.departmentName,
-    )
+              l.departments.contains(course.departmentName) ||
+              l.department == course.departmentName,
+        )
         .toList();
     // Fall back to all lecturers if none matched (e.g. legacy data)
     final pool = eligible.isNotEmpty ? eligible : lecturers;
 
     ManagedUserModel? selected = course.hasLecturer
         ? pool.firstWhere(
-          (l) => l.id == course.assignedLecturerId,
-      orElse: () => pool.isNotEmpty ? pool.first : lecturers.first,
-    )
+            (l) => l.id == course.assignedLecturerId,
+            orElse: () => pool.isNotEmpty ? pool.first : lecturers.first,
+          )
         : null;
 
     showDialog(
@@ -2040,7 +2040,7 @@ class _CourseCard extends StatelessWidget {
                     ),
                     child: Text(
                       'No lecturers are assigned to "${course.departmentName}". '
-                          'Showing all lecturers.',
+                      'Showing all lecturers.',
                       style: GoogleFonts.poppins(fontSize: 11, color: _kOrange),
                     ),
                   ),
@@ -2067,13 +2067,13 @@ class _CourseCard extends StatelessWidget {
                 items: pool
                     .map(
                       (l) => DropdownMenuItem(
-                    value: l,
-                    child: Text(
-                      l.fullName,
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
-                  ),
-                )
+                        value: l,
+                        child: Text(
+                          l.fullName,
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (l) => setD(() => selected = l),
               ),
@@ -2097,13 +2097,13 @@ class _CourseCard extends StatelessWidget {
               onPressed: selected == null
                   ? null
                   : () async {
-                Navigator.pop(context);
-                final updated = await ctrl.assignLecturer(
-                  course,
-                  selected!,
-                );
-                onAssign(updated);
-              },
+                      Navigator.pop(context);
+                      final updated = await ctrl.assignLecturer(
+                        course,
+                        selected!,
+                      );
+                      onAssign(updated);
+                    },
               child: Text(
                 'Assign',
                 style: GoogleFonts.poppins(
@@ -2217,7 +2217,7 @@ class _TimetableSlotCard extends StatelessWidget {
             builder: (_) => _ConfirmDialog(
               title: 'Remove Slot',
               message:
-              'Remove ${slot.courseCode} '
+                  'Remove ${slot.courseCode} '
                   '${slot.day.label}?',
               onConfirm: () => onDelete(slot.id),
               destructive: true,
@@ -2319,7 +2319,7 @@ class _SemesterCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     '${_fmt(semester.startDate)} – '
-                        '${_fmt(semester.endDate)}',
+                    '${_fmt(semester.endDate)}',
                     style: GoogleFonts.poppins(fontSize: 12, color: _kSubtext),
                   ),
                   const SizedBox(width: 12),
@@ -2494,35 +2494,35 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                     .where((r) => r != UserRole.admin && r != UserRole.dean)
                     .map(
                       (r) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: GestureDetector(
-                        onTap: () => setState(() {
-                          _role = r;
-                          _selectedDepts.clear();
-                          _selectedFaculty = null;
-                          _programme = null;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _role == r ? _kCherry : _kBg,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            r.label,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _role == r ? _kWhite : _kSubtext,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _role = r;
+                              _selectedDepts.clear();
+                              _selectedFaculty = null;
+                              _programme = null;
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _role == r ? _kCherry : _kBg,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                r.label,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _role == r ? _kWhite : _kSubtext,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                )
+                    )
                     .toList(),
               ),
               const SizedBox(height: 14),
@@ -2576,17 +2576,17 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                     style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
                   ),
                   validator: (v) =>
-                  v == null ? 'Please select a faculty' : null,
+                      v == null ? 'Please select a faculty' : null,
                   items: kFaculties
                       .map(
                         (f) => DropdownMenuItem(
-                      value: f.name,
-                      child: Text(
-                        f.name,
-                        style: GoogleFonts.poppins(fontSize: 13),
-                      ),
-                    ),
-                  )
+                          value: f.name,
+                          child: Text(
+                            f.name,
+                            style: GoogleFonts.poppins(fontSize: 13),
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (v) => setState(() {
                     _selectedFaculty = v;
@@ -2607,21 +2607,21 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                     style: GoogleFonts.poppins(fontSize: 13, color: _kSubtext),
                   ),
                   validator: (v) =>
-                  v == null ? 'Please select a programme' : null,
+                      v == null ? 'Please select a programme' : null,
                   items:
-                  (_selectedFaculty == null
-                      ? <String>[]
-                      : programmesForFaculty(_selectedFaculty!))
-                      .map(
-                        (p) => DropdownMenuItem(
-                      value: p,
-                      child: Text(
-                        p,
-                        style: GoogleFonts.poppins(fontSize: 13),
-                      ),
-                    ),
-                  )
-                      .toList(),
+                      (_selectedFaculty == null
+                              ? <String>[]
+                              : programmesForFaculty(_selectedFaculty!))
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p,
+                              child: Text(
+                                p,
+                                style: GoogleFonts.poppins(fontSize: 13),
+                              ),
+                            ),
+                          )
+                          .toList(),
                   onChanged: _selectedFaculty == null
                       ? null
                       : (v) => setState(() => _programme = v),
@@ -2634,13 +2634,13 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                   items: ['100', '200', '300', '400', '500']
                       .map(
                         (l) => DropdownMenuItem(
-                      value: l,
-                      child: Text(
-                        'Level $l',
-                        style: GoogleFonts.poppins(fontSize: 13),
-                      ),
-                    ),
-                  )
+                          value: l,
+                          child: Text(
+                            'Level $l',
+                            style: GoogleFonts.poppins(fontSize: 13),
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (v) => setState(() => _level = v!),
                 ),
@@ -2753,118 +2753,118 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         onPressed: _loading
             ? null
             : () async {
-          if (!_formKey.currentState!.validate()) return;
-          setState(() => _loading = true);
-          try {
-            final depts = _selectedDepts.toList();
-            final user = await widget.ctrl.createUser(
-              ManagedUserModel(
-                id: '',
-                fullName: _nameCtrl.text.trim(),
-                email: _emailCtrl.text.trim().toLowerCase(),
-                role: _role,
-                status: UserStatus.active,
-                indexNumber: _role == UserRole.student
-                    ? _idCtrl.text.trim()
-                    : null,
-                staffId: _role == UserRole.lecturer
-                    ? _idCtrl.text.trim()
-                    : null,
-                programme: _role == UserRole.student ? _programme : null,
-                level: _role == UserRole.student ? _level : null,
-                faculty: _role == UserRole.student
-                    ? facultyForProgramme(_programme ?? '')
-                    : (_selectedDepts.isNotEmpty
-                    ? _selectedDepts.first
-                    : null),
-                departments: _role == UserRole.lecturer ? depts : [],
-                department: _role == UserRole.lecturer && depts.isNotEmpty
-                    ? depts.first
-                    : null,
-                createdAt: DateTime.now(),
-              ),
-            );
-            if (context.mounted) {
-              Navigator.pop(context);
-              widget.onCreated(user);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: RichText(
-                          text: TextSpan(
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
+                if (!_formKey.currentState!.validate()) return;
+                setState(() => _loading = true);
+                try {
+                  final depts = _selectedDepts.toList();
+                  final user = await widget.ctrl.createUser(
+                    ManagedUserModel(
+                      id: '',
+                      fullName: _nameCtrl.text.trim(),
+                      email: _emailCtrl.text.trim().toLowerCase(),
+                      role: _role,
+                      status: UserStatus.active,
+                      indexNumber: _role == UserRole.student
+                          ? _idCtrl.text.trim()
+                          : null,
+                      staffId: _role == UserRole.lecturer
+                          ? _idCtrl.text.trim()
+                          : null,
+                      programme: _role == UserRole.student ? _programme : null,
+                      level: _role == UserRole.student ? _level : null,
+                      faculty: _role == UserRole.student
+                          ? facultyForProgramme(_programme ?? '')
+                          : (_selectedDepts.isNotEmpty
+                                ? _selectedDepts.first
+                                : null),
+                      departments: _role == UserRole.lecturer ? depts : [],
+                      department: _role == UserRole.lecturer && depts.isNotEmpty
+                          ? depts.first
+                          : null,
+                      createdAt: DateTime.now(),
+                    ),
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    widget.onCreated(user);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_rounded,
                               color: Colors.white,
+                              size: 18,
                             ),
-                            children: [
-                              TextSpan(
-                                text:
-                                '${user.fullName} created. Default password: ',
-                              ),
-                              TextSpan(
-                                text: 'Central@123',
-                                style: GoogleFonts.robotoMono(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: Colors.white,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    color: Colors.white,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text:
+                                          '${user.fullName} created. Default password: ',
+                                    ),
+                                    TextSpan(
+                                      text: 'Central@123',
+                                      style: GoogleFonts.robotoMono(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                        backgroundColor: _kGreen,
+                        duration: const Duration(seconds: 8),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        margin: const EdgeInsets.all(16),
                       ),
-                    ],
-                  ),
-                  backgroundColor: _kGreen,
-                  duration: const Duration(seconds: 8),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  margin: const EdgeInsets.all(16),
-                ),
-              );
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    e.toString().replaceFirst('Exception: ', ''),
-                    style: GoogleFonts.poppins(fontSize: 13),
-                  ),
-                  backgroundColor: _kCherry,
-                ),
-              );
-            }
-          } finally {
-            if (mounted) setState(() => _loading = false);
-          }
-        },
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          e.toString().replaceFirst('Exception: ', ''),
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                        backgroundColor: _kCherry,
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) setState(() => _loading = false);
+                }
+              },
         child: _loading
             ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: _kWhite,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _kWhite,
+                ),
+              )
             : Text(
-          'Create',
-          style: GoogleFonts.poppins(
-            color: _kWhite,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+                'Create',
+                style: GoogleFonts.poppins(
+                  color: _kWhite,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     ],
   );
@@ -2944,7 +2944,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                   'Full Name',
                   _nameCtrl,
                   validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 10),
 
@@ -2953,7 +2953,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                     'Index Number',
                     _idCtrl,
                     validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 10),
 
@@ -2972,13 +2972,13 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                     items: kFaculties
                         .map(
                           (f) => DropdownMenuItem(
-                        value: f.name,
-                        child: Text(
-                          f.name,
-                          style: GoogleFonts.poppins(fontSize: 13),
-                        ),
-                      ),
-                    )
+                            value: f.name,
+                            child: Text(
+                              f.name,
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setState(() {
                       _selectedFaculty = v;
@@ -3002,19 +3002,19 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                     ),
                     validator: (v) => v == null ? 'Required' : null,
                     items:
-                    (_selectedFaculty == null
-                        ? <String>[]
-                        : programmesForFaculty(_selectedFaculty!))
-                        .map(
-                          (p) => DropdownMenuItem(
-                        value: p,
-                        child: Text(
-                          p,
-                          style: GoogleFonts.poppins(fontSize: 13),
-                        ),
-                      ),
-                    )
-                        .toList(),
+                        (_selectedFaculty == null
+                                ? <String>[]
+                                : programmesForFaculty(_selectedFaculty!))
+                            .map(
+                              (p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(
+                                  p,
+                                  style: GoogleFonts.poppins(fontSize: 13),
+                                ),
+                              ),
+                            )
+                            .toList(),
                     onChanged: _selectedFaculty == null
                         ? null
                         : (v) => setState(() => _programme = v),
@@ -3027,13 +3027,13 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                     items: ['100', '200', '300', '400', '500']
                         .map(
                           (l) => DropdownMenuItem(
-                        value: l,
-                        child: Text(
-                          'Level $l',
-                          style: GoogleFonts.poppins(fontSize: 13),
-                        ),
-                      ),
-                    )
+                            value: l,
+                            child: Text(
+                              'Level $l',
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setState(() => _level = v!),
                   ),
@@ -3042,7 +3042,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                     'Staff ID',
                     _idCtrl,
                     validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 10),
 
@@ -3139,81 +3139,81 @@ class _EditUserDialogState extends State<_EditUserDialog> {
           onPressed: _loading
               ? null
               : () async {
-            if (!_formKey.currentState!.validate()) return;
-            setState(() => _loading = true);
-            try {
-              final depts = _selectedDepts.toList();
-              final updated = await widget.ctrl.updateUser(
-                widget.user.copyWith(
-                  fullName: _nameCtrl.text.trim(),
-                  indexNumber: isStudent ? _idCtrl.text.trim() : null,
-                  staffId: !isStudent ? _idCtrl.text.trim() : null,
-                  programme: isStudent ? _programme : null,
-                  level: isStudent ? _level : null,
-                  faculty: isStudent
-                      ? (_programme != null
-                      ? facultyForProgramme(_programme!)
-                      : _selectedFaculty)
-                      : (depts.isNotEmpty ? depts.first : null),
-                  departments: !isStudent ? depts : [],
-                  department: !isStudent && depts.isNotEmpty
-                      ? depts.first
-                      : null,
-                ),
-              );
-              if (context.mounted) {
-                Navigator.pop(context);
-                widget.onUpdated(updated);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${updated.fullName} updated successfully',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Colors.white,
+                  if (!_formKey.currentState!.validate()) return;
+                  setState(() => _loading = true);
+                  try {
+                    final depts = _selectedDepts.toList();
+                    final updated = await widget.ctrl.updateUser(
+                      widget.user.copyWith(
+                        fullName: _nameCtrl.text.trim(),
+                        indexNumber: isStudent ? _idCtrl.text.trim() : null,
+                        staffId: !isStudent ? _idCtrl.text.trim() : null,
+                        programme: isStudent ? _programme : null,
+                        level: isStudent ? _level : null,
+                        faculty: isStudent
+                            ? (_programme != null
+                                  ? facultyForProgramme(_programme!)
+                                  : _selectedFaculty)
+                            : (depts.isNotEmpty ? depts.first : null),
+                        departments: !isStudent ? depts : [],
+                        department: !isStudent && depts.isNotEmpty
+                            ? depts.first
+                            : null,
                       ),
-                    ),
-                    backgroundColor: _kGreen,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    margin: const EdgeInsets.all(16),
-                  ),
-                );
-              }
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      e.toString().replaceFirst('Exception: ', ''),
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
-                    backgroundColor: _kCherry,
-                  ),
-                );
-              }
-            } finally {
-              if (mounted) setState(() => _loading = false);
-            }
-          },
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      widget.onUpdated(updated);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${updated.fullName} updated successfully',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                          backgroundColor: _kGreen,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          margin: const EdgeInsets.all(16),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.toString().replaceFirst('Exception: ', ''),
+                            style: GoogleFonts.poppins(fontSize: 13),
+                          ),
+                          backgroundColor: _kCherry,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) setState(() => _loading = false);
+                  }
+                },
           child: _loading
               ? const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: _kWhite,
-            ),
-          )
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _kWhite,
+                  ),
+                )
               : Text(
-            'Save Changes',
-            style: GoogleFonts.poppins(
-              color: _kWhite,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+                  'Save Changes',
+                  style: GoogleFonts.poppins(
+                    color: _kWhite,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
       ],
     );
@@ -3242,7 +3242,9 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
   final _codeCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   int _credits = 3;
-  String? _selectedFaculty; // department = faculty name
+  String? _selectedFaculty;
+  String? _selectedProgramme;
+  String? _selectedLevel;
   ManagedUserModel? _lecturer;
   bool _loading = false;
 
@@ -3252,9 +3254,9 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
     return widget.lecturers
         .where(
           (l) =>
-      l.departments.contains(_selectedFaculty!) ||
-          l.department == _selectedFaculty,
-    )
+              l.departments.contains(_selectedFaculty!) ||
+              l.department == _selectedFaculty,
+        )
         .toList();
   }
 
@@ -3308,13 +3310,13 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
                 items: kFaculties
                     .map(
                       (f) => DropdownMenuItem(
-                    value: f.name,
-                    child: Text(
-                      f.name,
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
-                  ),
-                )
+                        value: f.name,
+                        child: Text(
+                          f.name,
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() {
                   _selectedFaculty = v;
@@ -3359,13 +3361,13 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
                 items: _eligibleLecturers
                     .map(
                       (l) => DropdownMenuItem(
-                    value: l,
-                    child: Text(
-                      l.fullName,
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
-                  ),
-                )
+                        value: l,
+                        child: Text(
+                          l.fullName,
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: _eligibleLecturers.isEmpty
                     ? null
@@ -3391,50 +3393,53 @@ class _AddCourseDialogState extends State<_AddCourseDialog> {
         onPressed: _loading
             ? null
             : () async {
-          if (!_formKey.currentState!.validate()) return;
-          setState(() => _loading = true);
-          try {
-            final course = await widget.ctrl.createCourse(
-              AdminCourseModel(
-                id: '',
-                courseCode: _codeCtrl.text.trim(),
-                courseName: _nameCtrl.text.trim(),
-                departmentId: _selectedFaculty!.toLowerCase().replaceAll(
-                  ' ',
-                  '_',
-                ),
-                departmentName: _selectedFaculty!,
-                creditHours: _credits,
-                enrolledStudents: 0,
-                semester: '2025/2026 Semester 2',
-                assignedLecturerId: _lecturer?.id,
-                assignedLecturerName: _lecturer?.fullName,
-              ),
-            );
-            if (context.mounted) {
-              Navigator.pop(context);
-              widget.onCreated(course);
-            }
-          } finally {
-            if (mounted) setState(() => _loading = false);
-          }
-        },
+                if (!_formKey.currentState!.validate()) return;
+                setState(() => _loading = true);
+                try {
+                  final course = await widget.ctrl.createCourse(
+                    AdminCourseModel(
+                      id: '',
+                      courseCode: _codeCtrl.text.trim(),
+                      courseName: _nameCtrl.text.trim(),
+                      departmentId: _selectedFaculty!.toLowerCase().replaceAll(
+                        ' ',
+                        '_',
+                      ),
+                      departmentName: _selectedFaculty!,
+                      faculty: _selectedFaculty!,
+                      programme: _selectedProgramme ?? '',
+                      level: _selectedLevel ?? '',
+                      creditHours: _credits,
+                      enrolledStudents: 0,
+                      semester: '2025/2026 Semester 2',
+                      assignedLecturerId: _lecturer?.id,
+                      assignedLecturerName: _lecturer?.fullName,
+                    ),
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    widget.onCreated(course);
+                  }
+                } finally {
+                  if (mounted) setState(() => _loading = false);
+                }
+              },
         child: _loading
             ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: _kWhite,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _kWhite,
+                ),
+              )
             : Text(
-          'Create',
-          style: GoogleFonts.poppins(
-            color: _kWhite,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+                'Create',
+                style: GoogleFonts.poppins(
+                  color: _kWhite,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     ],
   );
@@ -3461,21 +3466,97 @@ class _AddSlotDialog extends StatefulWidget {
 
 class _AddSlotDialogState extends State<_AddSlotDialog> {
   final _formKey = GlobalKey<FormState>();
+  final _searchCtrl = TextEditingController();
   final _roomCtrl = TextEditingController();
-  final _startCtrl = TextEditingController();
-  final _endCtrl = TextEditingController();
+
   AdminCourseModel? _course;
   TimetableDay _day = TimetableDay.mon;
+  TimeOfDay _start = const TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay _end = const TimeOfDay(hour: 9, minute: 30);
   String _level = '100';
   bool _loading = false;
+  String _search = '';
+
+  // Levels inferred from selected course programme, or default list
+  static const _defaultLevels = ['100', '200', '300', '400'];
 
   @override
   void dispose() {
+    _searchCtrl.dispose();
     _roomCtrl.dispose();
-    _startCtrl.dispose();
-    _endCtrl.dispose();
     super.dispose();
   }
+
+  List<AdminCourseModel> get _filtered {
+    if (_search.isEmpty) return widget.courses;
+    final q = _search.toLowerCase();
+    return widget.courses
+        .where(
+          (c) =>
+              c.courseCode.toLowerCase().contains(q) ||
+              c.courseName.toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  String _fmtTime(TimeOfDay t) {
+    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final m = t.minute.toString().padLeft(2, '0');
+    final ampm = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$h:$m $ampm';
+  }
+
+  Future<void> _pickTime(bool isStart) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isStart ? _start : _end,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(
+          ctx,
+        ).copyWith(colorScheme: const ColorScheme.light(primary: _kCherry)),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _start = picked;
+          // Auto-advance end by 1h30m
+          final endMin = picked.hour * 60 + picked.minute + 90;
+          _end = TimeOfDay(hour: (endMin ~/ 60) % 24, minute: endMin % 60);
+        } else {
+          _end = picked;
+        }
+      });
+    }
+  }
+
+  Widget _timeBox(String label, TimeOfDay t, bool isStart) => GestureDetector(
+    onTap: () => _pickTime(isStart),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEEF3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time_rounded, size: 16, color: _kCherry),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _fmtTime(t),
+              style: GoogleFonts.poppins(fontSize: 13, color: _kText),
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.poppins(fontSize: 10, color: _kSubtext),
+          ),
+        ],
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) => AlertDialog(
@@ -3491,87 +3572,267 @@ class _AddSlotDialogState extends State<_AddSlotDialog> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DropdownButtonFormField<AdminCourseModel>(
-                value: _course,
-                isExpanded: true,
-                decoration: _inputDec('Course'),
-                validator: (v) => v == null ? 'Required' : null,
-                items: widget.courses
-                    .map(
-                      (c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(
-                      '${c.courseCode} — '
-                          '${c.courseName}',
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(fontSize: 12),
-                    ),
-                  ),
-                )
-                    .toList(),
-                onChanged: (c) => setState(() => _course = c),
+              // ── Course (searchable dropdown) ──────────
+              Text(
+                'Course',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kSubtext,
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
+
+              // Search box
+              TextFormField(
+                controller: _searchCtrl,
+                style: GoogleFonts.poppins(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Search course code or name…',
+                  hintStyle: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: _kSubtext,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: _kSubtext,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFEEEEF3),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onChanged: (v) => setState(() => _search = v),
+              ),
+              const SizedBox(height: 6),
+
+              // Course list
+              Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEEEF3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No courses found',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: _kSubtext,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: _filtered.length,
+                        itemBuilder: (_, i) {
+                          final c = _filtered[i];
+                          final selected = _course?.id == c.id;
+                          return ListTile(
+                            dense: true,
+                            selected: selected,
+                            selectedColor: _kCherry,
+                            selectedTileColor: _kCherry.withValues(alpha: 0.07),
+                            title: Text(
+                              '${c.courseCode} — ${c.courseName}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                            subtitle: Text(
+                              c.programme,
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: _kSubtext,
+                              ),
+                            ),
+                            trailing: selected
+                                ? const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: _kCherry,
+                                    size: 16,
+                                  )
+                                : null,
+                            onTap: () => setState(() {
+                              _course = c;
+                              // Auto-set level to match course level
+                              if (c.level.isNotEmpty) _level = c.level;
+                            }),
+                          );
+                        },
+                      ),
+              ),
+              if (_course == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 4),
+                  child: Text(
+                    'Please select a course',
+                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.red),
+                  ),
+                ),
+
+              const SizedBox(height: 14),
+
+              // ── Department (auto-filled) ──────────────
+              Text(
+                'Department',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kSubtext,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 13,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEEEF3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.school_rounded,
+                      size: 16,
+                      color: _kSubtext,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _course?.faculty.isNotEmpty == true
+                            ? _course!.faculty
+                            : 'Auto-filled when course is selected',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: _course?.faculty.isNotEmpty == true
+                              ? _kText
+                              : _kSubtext,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── Day ──────────────────────────────────
+              Text(
+                'Day',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kSubtext,
+                ),
+              ),
+              const SizedBox(height: 6),
               DropdownButtonFormField<TimetableDay>(
                 value: _day,
-                decoration: _inputDec('Day'),
+                decoration: _inputDec(''),
                 items: TimetableDay.values
                     .map(
                       (d) => DropdownMenuItem(
-                    value: d,
-                    child: Text(
-                      d.label,
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
-                  ),
-                )
+                        value: d,
+                        child: Text(
+                          d.label,
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (d) => setState(() => _day = d!),
               ),
-              const SizedBox(height: 10),
+
+              const SizedBox(height: 14),
+
+              // ── Time ─────────────────────────────────
+              Text(
+                'Time',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kSubtext,
+                ),
+              ),
+              const SizedBox(height: 6),
               Row(
                 children: [
-                  Expanded(
-                    child: _tf(
-                      'Start Time',
-                      _startCtrl,
-                      hint: '10:00 AM',
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
+                  Expanded(child: _timeBox('Start', _start, true)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'to',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: _kSubtext,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _tf(
-                      'End Time',
-                      _endCtrl,
-                      hint: '11:30 AM',
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
-                    ),
-                  ),
+                  Expanded(child: _timeBox('End', _end, false)),
                 ],
               ),
-              const SizedBox(height: 10),
-              _tf(
-                'Room',
-                _roomCtrl,
-                hint: 'ICT Block - Lab 1',
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+
+              const SizedBox(height: 14),
+
+              // ── Room / Classroom ─────────────────────
+              Text(
+                'Classroom',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kSubtext,
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _roomCtrl,
+                style: GoogleFonts.poppins(fontSize: 13),
+                decoration: _inputDec('e.g. ICT Block - Lab 1'),
+                validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── Level ────────────────────────────────
+              Text(
+                'Level',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kSubtext,
+                ),
+              ),
+              const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 value: _level,
-                decoration: _inputDec('Student Level'),
-                items: ['100', '200', '300', '400']
+                decoration: _inputDec(''),
+                items: _defaultLevels
                     .map(
                       (l) => DropdownMenuItem(
-                    value: l,
-                    child: Text(
-                      'Level $l',
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
-                  ),
-                )
+                        value: l,
+                        child: Text(
+                          'Level $l',
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _level = v!),
               ),
@@ -3592,59 +3853,77 @@ class _AddSlotDialogState extends State<_AddSlotDialog> {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        onPressed: _loading
-            ? null
-            : () async {
-          if (!_formKey.currentState!.validate()) {
-            return;
-          }
-          setState(() => _loading = true);
-          try {
-            final slot = await widget.ctrl.createTimetableSlot(
-              TimetableSlotModel(
-                id: '',
-                courseId: _course!.id,
-                courseCode: _course!.courseCode,
-                courseName: _course!.courseName,
-                lecturerName: _course!.assignedLecturerName ?? 'TBA',
-                day: _day,
-                startTime: _startCtrl.text.trim(),
-                endTime: _endCtrl.text.trim(),
-                room: _roomCtrl.text.trim(),
-                level: _level,
-                programme: 'BSc. Computer Science',
-                semester: '2025/2026 Semester 2',
-              ),
-            );
-            if (context.mounted) {
-              Navigator.pop(context);
-              widget.onCreated(slot);
-            }
-          } finally {
-            if (mounted) {
-              setState(() => _loading = false);
-            }
-          }
-        },
+        onPressed: _loading ? null : _submit,
         child: _loading
             ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: _kWhite,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _kWhite,
+                ),
+              )
             : Text(
-          'Add Slot',
-          style: GoogleFonts.poppins(
-            color: _kWhite,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+                'Add Slot',
+                style: GoogleFonts.poppins(
+                  color: _kWhite,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     ],
   );
+
+  Future<void> _submit() async {
+    if (_course == null) {
+      setState(() {});
+      return;
+    }
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+    try {
+      final slot = await widget.ctrl.createTimetableSlot(
+        TimetableSlotModel(
+          id: '',
+          courseId: _course!.id,
+          courseCode: _course!.courseCode,
+          courseName: _course!.courseName,
+          lecturerName: _course!.assignedLecturerName ?? 'TBA',
+          day: _day,
+          startTime: _fmtTime(_start),
+          endTime: _fmtTime(_end),
+          room: _roomCtrl.text.trim(),
+          level: _level,
+          programme: _course!.programme,
+          semester: _course!.semester,
+        ),
+      );
+      if (context.mounted) {
+        Navigator.pop(context);
+        widget.onCreated(slot);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst('Exception: ', ''),
+              style: GoogleFonts.poppins(fontSize: 13),
+            ),
+            backgroundColor: _kCherry,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -3776,47 +4055,47 @@ class _AddSemesterDialogState extends State<_AddSemesterDialog> {
         onPressed: _loading
             ? null
             : () async {
-          if (!_formKey.currentState!.validate()) {
-            return;
-          }
-          setState(() => _loading = true);
-          try {
-            final sem = await widget.ctrl.createSemester(
-              SemesterModel(
-                id: '',
-                name: _nameCtrl.text.trim(),
-                startDate: _start,
-                endDate: _end,
-                teachingWeeks: _weeks,
-                isCurrent: false,
-              ),
-            );
-            if (context.mounted) {
-              Navigator.pop(context);
-              widget.onCreated(sem);
-            }
-          } finally {
-            if (mounted) {
-              setState(() => _loading = false);
-            }
-          }
-        },
+                if (!_formKey.currentState!.validate()) {
+                  return;
+                }
+                setState(() => _loading = true);
+                try {
+                  final sem = await widget.ctrl.createSemester(
+                    SemesterModel(
+                      id: '',
+                      name: _nameCtrl.text.trim(),
+                      startDate: _start,
+                      endDate: _end,
+                      teachingWeeks: _weeks,
+                      isCurrent: false,
+                    ),
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    widget.onCreated(sem);
+                  }
+                } finally {
+                  if (mounted) {
+                    setState(() => _loading = false);
+                  }
+                }
+              },
         child: _loading
             ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: _kWhite,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _kWhite,
+                ),
+              )
             : Text(
-          'Create',
-          style: GoogleFonts.poppins(
-            color: _kWhite,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+                'Create',
+                style: GoogleFonts.poppins(
+                  color: _kWhite,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     ],
   );
@@ -3846,11 +4125,11 @@ class _CsvUploadDialogState extends State<_CsvUploadDialog> {
 
   String get _template => widget.role == UserRole.student
       ? 'fullName,email,indexNumber,programme,level\n'
-      'Kofi Mensah,kofi@uni.edu.gh,UG/2024/0001,'
-      'BSc. Computer Science,100'
+            'Kofi Mensah,kofi@uni.edu.gh,UG/2024/0001,'
+            'BSc. Computer Science,100'
       : 'fullName,email,staffId\n'
-      'Dr. Kwame Asante,k.asante@uni.edu.gh,'
-      'STF/2024/0001';
+            'Dr. Kwame Asante,k.asante@uni.edu.gh,'
+            'STF/2024/0001';
 
   @override
   void dispose() {
@@ -3949,8 +4228,8 @@ class _CsvUploadDialogState extends State<_CsvUploadDialog> {
                 children: [
                   Text(
                     '✅ ${_result!.successCount} '
-                        'imported  '
-                        '❌ ${_result!.errorCount} errors',
+                    'imported  '
+                    '❌ ${_result!.errorCount} errors',
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -3963,18 +4242,18 @@ class _CsvUploadDialogState extends State<_CsvUploadDialog> {
                         .take(3)
                         .map(
                           (e) => Text(
-                        '• $e',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: Colors.red.shade700,
+                            '• $e',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
                     if (_result!.errors.length > 3)
                       Text(
                         '...and '
-                            '${_result!.errors.length - 3}'
-                            ' more errors',
+                        '${_result!.errors.length - 3}'
+                        ' more errors',
                         style: GoogleFonts.poppins(
                           fontSize: 11,
                           color: Colors.red.shade400,
@@ -4006,13 +4285,13 @@ class _CsvUploadDialogState extends State<_CsvUploadDialog> {
           ),
           icon: _loading
               ? const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: _kWhite,
-            ),
-          )
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _kWhite,
+                  ),
+                )
               : const Icon(Icons.upload_rounded, color: _kWhite, size: 16),
           label: Text(
             'Upload',
@@ -4024,23 +4303,23 @@ class _CsvUploadDialogState extends State<_CsvUploadDialog> {
           onPressed: _loading
               ? null
               : () async {
-            if (_csvCtrl.text.trim().isEmpty) {
-              return;
-            }
-            setState(() => _loading = true);
-            try {
-              final result = await widget.ctrl.bulkUploadUsers(
-                _csvCtrl.text,
-                widget.role,
-              );
-              setState(() => _result = result);
-              widget.onUploaded(result);
-            } finally {
-              if (mounted) {
-                setState(() => _loading = false);
-              }
-            }
-          },
+                  if (_csvCtrl.text.trim().isEmpty) {
+                    return;
+                  }
+                  setState(() => _loading = true);
+                  try {
+                    final result = await widget.ctrl.bulkUploadUsers(
+                      _csvCtrl.text,
+                      widget.role,
+                    );
+                    setState(() => _result = result);
+                    widget.onUploaded(result);
+                  } finally {
+                    if (mounted) {
+                      setState(() => _loading = false);
+                    }
+                  }
+                },
         ),
     ],
   );
@@ -4215,12 +4494,12 @@ BoxDecoration _card() => BoxDecoration(
 );
 
 Widget _tf(
-    String label,
-    TextEditingController ctrl, {
-      String? hint,
-      TextInputType keyboardType = TextInputType.text,
-      String? Function(String?)? validator,
-    }) => TextFormField(
+  String label,
+  TextEditingController ctrl, {
+  String? hint,
+  TextInputType keyboardType = TextInputType.text,
+  String? Function(String?)? validator,
+}) => TextFormField(
   controller: ctrl,
   keyboardType: keyboardType,
   validator: validator,

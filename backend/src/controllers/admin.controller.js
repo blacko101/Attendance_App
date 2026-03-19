@@ -392,3 +392,165 @@ exports.getStats = async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
+// ─────────────────────────────────────────────────────────────────
+//  LIST ALL COURSES  (admin)
+//  GET /api/admin/courses?search=&programme=&level=
+// ─────────────────────────────────────────────────────────────────
+exports.listCourses = async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+
+    if (!Course) return res.status(200).json({ count: 0, courses: [] });
+
+    const { search, programme, level } = req.query;
+    const filter = {};
+
+    if (programme) filter.programme = programme;
+    if (level)     filter.level     = level;
+    if (search) {
+      const re = new RegExp(search, "i");
+      filter.$or = [{ courseCode: re }, { courseName: re }];
+    }
+
+    const courses = await Course.find(filter)
+      .sort({ courseCode: 1 })
+      .limit(200);
+
+    return res.status(200).json({
+      count: courses.length,
+      courses: courses.map((c) => ({
+        _id:                  c._id,
+        courseCode:           c.courseCode,
+        courseName:           c.courseName,
+        department:           c.department,
+        faculty:              c.faculty || c.department,
+        programme:            c.programme || "",
+        level:                c.level     || "",
+        creditHours:          c.creditHours,
+        semester:             c.semester,
+        assignedLecturerId:   c.assignedLecturerId,
+        assignedLecturerName: c.assignedLecturerName || "",
+        enrolledStudents:     c.enrolledStudents || 0,
+      })),
+    });
+  } catch (err) {
+    console.error("listCourses error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  LIST TIMETABLE  (admin)
+//  GET /api/admin/timetable?programme=&level=&semester=
+// ─────────────────────────────────────────────────────────────────
+exports.listTimetable = async (req, res) => {
+  try {
+    const mongoose  = require("mongoose");
+    const Timetable = mongoose.models.Timetable;
+
+    if (!Timetable) return res.status(200).json({ count: 0, slots: [] });
+
+    const { programme, level, semester } = req.query;
+    const filter = {};
+    if (programme) filter.programme = programme;
+    if (level)     filter.level     = level;
+    if (semester)  filter.semester  = semester;
+
+    const slots = await Timetable.find(filter)
+      .sort({ day: 1, startTime: 1 })
+      .limit(500);
+
+    return res.status(200).json({ count: slots.length, slots });
+  } catch (err) {
+    console.error("listTimetable error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  CREATE TIMETABLE SLOT  (admin)
+//  POST /api/admin/timetable
+// ─────────────────────────────────────────────────────────────────
+exports.createTimetableSlot = async (req, res) => {
+  try {
+    const mongoose  = require("mongoose");
+    const Timetable = mongoose.models.Timetable;
+    const Course    = mongoose.models.Course;
+
+    if (!Timetable) {
+      return res.status(500).json({ message: "Timetable model not registered." });
+    }
+
+    const {
+      courseCode, courseName, courseId,
+      day, startTime, endTime,
+      room, level, programme, semester,
+      lecturerId, lecturerName,
+    } = req.body;
+
+    if (!courseCode || !day || !startTime || !endTime || !room || !level) {
+      return res.status(400).json({
+        message: "courseCode, day, startTime, endTime, room and level are required.",
+      });
+    }
+
+    // Check for duplicate slot (same course + day + startTime)
+    const existing = await Timetable.findOne({ courseCode, day, startTime, semester });
+    if (existing) {
+      return res.status(409).json({
+        message: `A slot for ${courseCode} on ${day} at ${startTime} already exists.`,
+      });
+    }
+
+    // Resolve lecturer from course if not supplied
+    let resolvedLecturerId   = lecturerId   || null;
+    let resolvedLecturerName = lecturerName || "";
+    if (!resolvedLecturerId && Course) {
+      const course = await Course.findOne({ courseCode });
+      if (course) {
+        resolvedLecturerId   = course.assignedLecturerId   || null;
+        resolvedLecturerName = course.assignedLecturerName || "";
+      }
+    }
+
+    const slot = await Timetable.create({
+      courseId:     courseId || null,
+      courseCode,
+      courseName,
+      lecturerId:   resolvedLecturerId,
+      lecturerName: resolvedLecturerName,
+      day,
+      startTime,
+      endTime,
+      room,
+      level,
+      programme: programme || "",
+      semester:  semester  || "",
+    });
+
+    return res.status(201).json({ slot });
+  } catch (err) {
+    console.error("createTimetableSlot error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  DELETE TIMETABLE SLOT  (admin)
+//  DELETE /api/admin/timetable/:id
+// ─────────────────────────────────────────────────────────────────
+exports.deleteTimetableSlot = async (req, res) => {
+  try {
+    const mongoose  = require("mongoose");
+    const Timetable = mongoose.models.Timetable;
+
+    if (!Timetable) return res.status(404).json({ message: "Not found." });
+
+    await Timetable.findByIdAndDelete(req.params.id);
+    return res.status(200).json({ message: "Slot deleted." });
+  } catch (err) {
+    console.error("deleteTimetableSlot error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};

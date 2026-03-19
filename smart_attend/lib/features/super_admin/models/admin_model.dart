@@ -228,12 +228,15 @@ class AdminCourseModel {
   final String courseCode;
   final String courseName;
   final String departmentId;
-  final String departmentName;
+  final String departmentName; // same as faculty
+  final String faculty; // e.g. "School of Engineering & Technology"
+  final String programme; // e.g. "BSc Computer Science"
+  final String level; // "100" | "200" | "300" | "400"
   final int creditHours;
   final String? assignedLecturerId;
   final String? assignedLecturerName;
   final int enrolledStudents;
-  final String semester; // e.g. "2025/2026 Semester 2"
+  final String semester;
 
   const AdminCourseModel({
     required this.id,
@@ -241,6 +244,9 @@ class AdminCourseModel {
     required this.courseName,
     required this.departmentId,
     required this.departmentName,
+    required this.faculty,
+    required this.programme,
+    required this.level,
     required this.creditHours,
     required this.enrolledStudents,
     required this.semester,
@@ -259,6 +265,9 @@ class AdminCourseModel {
     courseName: courseName,
     departmentId: departmentId,
     departmentName: departmentName,
+    faculty: faculty,
+    programme: programme,
+    level: level,
     creditHours: creditHours,
     enrolledStudents: enrolledStudents,
     semester: semester,

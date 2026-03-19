@@ -12,23 +12,35 @@ const {
   listSessions,
   getSessionReport,
   getStats,
+  listCourses,
+  listTimetable,
+  createTimetableSlot,
+  deleteTimetableSlot,
 } = require("../controllers/admin.controller");
 
 router.use(authMiddleware);
 router.use(roleMiddleware("admin"));
 
-// Dashboard
+// ── Dashboard ─────────────────────────────────
 router.get("/stats", getStats);
 
-// User management
-router.get("/users",              listUsers);
-router.post("/users",             createUser);
-router.get("/users/:id",          getUser);
-router.patch("/users/:id",        updateUser);
-router.patch("/users/:id/status", setUserStatus);
+// ── User management ───────────────────────────
+router.get   ("/users",              listUsers);
+router.post  ("/users",              createUser);
+router.get   ("/users/:id",          getUser);
+router.patch ("/users/:id",          updateUser);
+router.patch ("/users/:id/status",   setUserStatus);
 
-// Session management (read-only)
-router.get("/sessions",                   listSessions);
-router.get("/sessions/:sessionId/report", getSessionReport);
+// ── Session management (read-only) ────────────
+router.get   ("/sessions",                    listSessions);
+router.get   ("/sessions/:sessionId/report",  getSessionReport);
+
+// ── Course management ─────────────────────────
+router.get   ("/courses",            listCourses);
+
+// ── Timetable management ──────────────────────
+router.get   ("/timetable",          listTimetable);
+router.post  ("/timetable",          createTimetableSlot);
+router.delete("/timetable/:id",      deleteTimetableSlot);
 
 module.exports = router;
