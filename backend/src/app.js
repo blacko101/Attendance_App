@@ -1,7 +1,7 @@
 const express   = require("express");
 const cors      = require("cors");
 const helmet    = require("helmet");
-const rateLimit = require("express-rate-limit");
+const { rateLimit, ipKeyGenerator } = require("express-rate-limit");
 const mongoose  = require("mongoose");
 
 // ── Register Course & Timetable models ────────────────────────────
@@ -104,7 +104,8 @@ const loginEmailLimiter = rateLimit({
     if (email && typeof email === "string" && email.trim().length > 0) {
       return `login:email:${email.trim().toLowerCase()}`;
     }
-    return `login:email:${req.ip}`;
+    // Fall back to normalised IP (handles IPv6 correctly)
+    return `login:email:${ipKeyGenerator(req)}`;
   },
   message: {
     message:

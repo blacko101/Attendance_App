@@ -425,7 +425,7 @@ exports.getMyEnrolledCourses = async (req, res) => {
     }
 
     // Get the student's programme from their user record
-    const student = await User.findById(req.user.id).select("programme level faculty");
+    const student = await User.findById(req.user.id).select("programme level faculty enrolledCourses");
     if (!student) {
       return res.status(404).json({ message: "Student not found." });
     }
@@ -435,12 +435,17 @@ exports.getMyEnrolledCourses = async (req, res) => {
     const Attendance = require("../models/Attendance");
     const AttendanceSession = require("../models/AttendanceSession");
 
+    // Use the student's enrolledCourses array as the source of truth.
+    // This shows ONLY the courses they have registered for — not every
+    // course in their faculty or programme.
+    const enrolledCodes = student.enrolledCourses || [];
+
+    if (enrolledCodes.length === 0) {
+      return res.status(200).json({ count: 0, courses: [] });
+    }
+
     const courses = await Course.find({
-      $or: [
-        { programme: student.programme },
-        { faculty: student.faculty },
-        { department: student.faculty },
-      ],
+      courseCode: { $in: enrolledCodes },
     }).sort({ courseCode: 1 });
 
     // For each course, compute the student's attendance rate
@@ -717,13 +722,12 @@ exports.getAvailableCourses = async (req, res) => {
       return res.status(404).json({ message: "Student not found." });
     }
 
-    // Find courses matching the student's programme or faculty
+    // Filter strictly by programme AND level.
+    // This ensures a CS Level 300 student only sees CS Level 300 courses
+    // — not IT or Civil Engineering courses, and not other year levels.
     const courses = await Course.find({
-      $or: [
-        { programme: student.programme },
-        { faculty:   student.faculty   },
-        { department: student.faculty  },
-      ],
+      programme: student.programme,
+      level:     student.level,
     }).sort({ courseCode: 1 });
 
     const enrolled = student.enrolledCourses || [];
