@@ -33,6 +33,9 @@ router.get ("/sessions/:sessionId/students",          authMiddleware, roleMiddle
 router.get ("/sessions/:sessionId/count",             authMiddleware, roleMiddleware("lecturer"), getSessionCount);
 router.post("/sessions/:sessionId/refresh-qr",        authMiddleware, roleMiddleware("lecturer"), refreshQr);
 router.patch("/sessions/:sessionId/end",              authMiddleware, roleMiddleware("lecturer"), endSession);
+router.get ("/my-weekly-stats",                       authMiddleware, roleMiddleware("lecturer"), getMyWeeklyStats);
+router.get ("/my-course-summary",                     authMiddleware, roleMiddleware("lecturer"), getMyCourseSummary);
+router.get ("/sessions/:sessionId/detail",            authMiddleware, roleMiddleware("lecturer"), getSessionDetail);
 
 // ─────────────────────────────────────────────
 //  STUDENT ROUTES

@@ -425,7 +425,7 @@ exports.getMyEnrolledCourses = async (req, res) => {
     }
 
     // Get the student's programme from their user record
-    const student = await User.findById(req.user.id).select("programme level faculty enrolledCourses");
+    const student = await User.findById(req.user.id).select("programme level faculty");
     if (!student) {
       return res.status(404).json({ message: "Student not found." });
     }
@@ -435,17 +435,12 @@ exports.getMyEnrolledCourses = async (req, res) => {
     const Attendance = require("../models/Attendance");
     const AttendanceSession = require("../models/AttendanceSession");
 
-    // Use the student's enrolledCourses array as the source of truth.
-    // This shows ONLY the courses they have registered for — not every
-    // course in their faculty or programme.
-    const enrolledCodes = student.enrolledCourses || [];
-
-    if (enrolledCodes.length === 0) {
-      return res.status(200).json({ count: 0, courses: [] });
-    }
-
     const courses = await Course.find({
-      courseCode: { $in: enrolledCodes },
+      $or: [
+        { programme: student.programme },
+        { faculty: student.faculty },
+        { department: student.faculty },
+      ],
     }).sort({ courseCode: 1 });
 
     // For each course, compute the student's attendance rate
@@ -722,12 +717,13 @@ exports.getAvailableCourses = async (req, res) => {
       return res.status(404).json({ message: "Student not found." });
     }
 
-    // Filter strictly by programme AND level.
-    // This ensures a CS Level 300 student only sees CS Level 300 courses
-    // — not IT or Civil Engineering courses, and not other year levels.
+    // Find courses matching the student's programme or faculty
     const courses = await Course.find({
-      programme: student.programme,
-      level:     student.level,
+      $or: [
+        { programme: student.programme },
+        { faculty:   student.faculty   },
+        { department: student.faculty  },
+      ],
     }).sort({ courseCode: 1 });
 
     const enrolled = student.enrolledCourses || [];
@@ -862,5 +858,199 @@ exports.getMyDashboardStats = async (req, res) => {
   } catch (err) {
     console.error("getMyDashboardStats error:", err.message);
     return res.status(500).json({ message: "Server error." });
+  }
+};
+// ─────────────────────────────────────────────────────────────────
+//  GET WEEKLY STATS
+//  GET /api/attendance/my-weekly-stats
+//  Auth: lecturer only
+//  Returns this week's session counts: scheduled(from timetable),
+//  held, notHeld, inPerson, online.
+// ─────────────────────────────────────────────────────────────────
+exports.getMyWeeklyStats = async (req, res) => {
+  try {
+    const mongoose  = require("mongoose");
+    const Timetable = mongoose.models.Timetable;
+
+    const now    = new Date();
+    // Monday 00:00 of current week
+    const day    = now.getDay() === 0 ? 7 : now.getDay(); // Sun=7
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day - 1));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    // Timetable slots this week for this lecturer
+    let scheduled = 0;
+    if (Timetable) {
+      scheduled = await Timetable.countDocuments({ lecturerId: req.user.id });
+    }
+
+    // Sessions actually run this week
+    const weekSessions = await AttendanceSession.find({
+      lecturerId: req.user.id,
+      createdAt:  { $gte: monday, $lte: sunday },
+    });
+
+    const held     = weekSessions.filter(s => !s.isActive || s.expiresAt < now).length;
+    const inPerson = weekSessions.filter(s => s.type === "inPerson").length;
+    const online   = weekSessions.filter(s => s.type === "online").length;
+    const notHeld  = Math.max(0, scheduled - held);
+
+    return res.status(200).json({ scheduled, held, notHeld, inPerson, online });
+  } catch (err) {
+    console.error("getMyWeeklyStats error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GET COURSE SUMMARY (for Summary page)
+//  GET /api/attendance/my-course-summary
+//  Auth: lecturer only
+//  Returns every assigned course with aggregate session stats and
+//  full session history (each session has its student count).
+// ─────────────────────────────────────────────────────────────────
+exports.getMyCourseSummary = async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+
+    if (!Course) return res.status(200).json({ courses: [] });
+
+    // All courses assigned to this lecturer
+    const courses = await Course.find({
+      assignedLecturerId: req.user.id,
+    }).sort({ courseCode: 1 });
+
+    const enriched = await Promise.all(courses.map(async (c) => {
+      // All sessions for this course by this lecturer
+      const sessions = await AttendanceSession.find({
+        lecturerId: req.user.id,
+        courseCode: c.courseCode,
+        isActive:   false,   // only completed sessions
+      }).sort({ createdAt: -1 });
+
+      // For each session, get student attendance count
+      const sessionHistory = await Promise.all(sessions.map(async (s) => {
+        const present = await Attendance.countDocuments({
+          sessionId: s._id,
+          status:    "present",
+        });
+        const total = await Attendance.countDocuments({ sessionId: s._id });
+        return {
+          sessionId:    s._id,
+          date:         s.createdAt,
+          type:         s.type,
+          studentsPresent: present,
+          studentsAbsent:  total - present,
+          totalStudents:   total,
+          expiresAt:    s.expiresAt,
+        };
+      }));
+
+      const held     = sessions.length;
+      const inPerson = sessions.filter(s => s.type === "inPerson").length;
+      const online   = sessions.filter(s => s.type === "online").length;
+
+      return {
+        _id:              c._id,
+        courseCode:       c.courseCode,
+        courseName:       c.courseName,
+        department:       c.department,
+        faculty:          c.faculty,
+        creditHours:      c.creditHours,
+        totalStudents:    c.enrolledStudents || 0,
+        assignedLecturerName: c.assignedLecturerName,
+        held,
+        inPerson,
+        online,
+        sessionHistory,
+      };
+    }));
+
+    return res.status(200).json({ count: enriched.length, courses: enriched });
+  } catch (err) {
+    console.error("getMyCourseSummary error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  GET SESSION ATTENDANCE DETAIL
+//  GET /api/attendance/sessions/:sessionId/detail
+//  Auth: lecturer only — ownership enforced
+//  Returns full student list with present/absent status.
+// ─────────────────────────────────────────────────────────────────
+exports.getSessionDetail = async (req, res) => {
+  try {
+    const User = require("../models/User");
+
+    const session = await AttendanceSession.findOne({
+      _id:        req.params.sessionId,
+      lecturerId: req.user.id,
+    });
+    if (!session) {
+      return res.status(404).json({ message: "Session not found." });
+    }
+
+    // All students who checked in
+    const records = await Attendance.find({ sessionId: req.params.sessionId })
+      .populate("studentId", "fullName email indexNumber");
+
+    const present = records.map(r => ({
+      studentId:   r.studentId?._id,
+      fullName:    r.studentId?.fullName || "Unknown",
+      email:       r.studentId?.email || "",
+      indexNumber: r.studentId?.indexNumber || "",
+      status:      "present",
+      checkedInAt: r.checkedInAt,
+    }));
+
+    // Students enrolled in this course but who did NOT check in
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+    let absent = [];
+
+    if (Course) {
+      const course = await Course.findOne({ courseCode: session.courseCode });
+      if (course) {
+        // Find enrolled students from User.enrolledCourses
+        const enrolledStudents = await User.find({
+          role:           "student",
+          isActive:       true,
+          enrolledCourses: session.courseCode,
+        }).select("fullName email indexNumber");
+
+        const presentIds = new Set(present.map(p => p.studentId?.toString()));
+        absent = enrolledStudents
+          .filter(s => !presentIds.has(s._id.toString()))
+          .map(s => ({
+            studentId:   s._id,
+            fullName:    s.fullName,
+            email:       s.email,
+            indexNumber: s.indexNumber || "",
+            status:      "absent",
+            checkedInAt: null,
+          }));
+      }
+    }
+
+    return res.status(200).json({
+      sessionId:    session._id,
+      courseCode:   session.courseCode,
+      courseName:   session.courseName,
+      date:         session.createdAt,
+      type:         session.type,
+      present,
+      absent,
+      totalPresent: present.length,
+      totalAbsent:  absent.length,
+    });
+  } catch (err) {
+    console.error("getSessionDetail error:", err.message);
+    return res.status(500).json({ error: err.message });
   }
 };

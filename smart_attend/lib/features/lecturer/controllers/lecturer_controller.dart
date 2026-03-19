@@ -53,60 +53,34 @@ class LecturerController {
   // ── FETCH TODAY'S STATS ───────────────────────────────────────────
   // GET /api/attendance/sessions?isActive=false — counts today's
   // sessions that belong to this lecturer.
-  Future<Map<String, int>> fetchTodayStats(String lecturerId) async {
+  // ── FETCH WEEKLY STATS ────────────────────────────────────────────
+  // GET /api/attendance/my-weekly-stats
+  Future<WeeklyStats> fetchWeeklyStats(String lecturerId) async {
     final session = await SessionService.getSession();
-    if (session == null) return _emptyStats();
+    if (session == null) return WeeklyStats.empty();
 
     try {
       final response = await http
           .get(
-            Uri.parse('${AppConfig.attendanceUrl}/sessions'),
+            Uri.parse('${AppConfig.attendanceUrl}/my-weekly-stats'),
             headers: {'Authorization': 'Bearer ${session.token}'},
           )
           .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode != 200) return _emptyStats();
+      if (response.statusCode != 200) return WeeklyStats.empty();
 
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final sessions = (body['sessions'] as List? ?? [])
-          .cast<Map<String, dynamic>>();
-
-      // Filter to today only
-      final today = DateTime.now();
-      final todaySess = sessions.where((s) {
-        final created = DateTime.tryParse(s['createdAt'] as String? ?? '');
-        if (created == null) return false;
-        return created.year == today.year &&
-            created.month == today.month &&
-            created.day == today.day;
-      }).toList();
-
-      final held = todaySess.where((s) => s['isActive'] == false).length;
-      final active = todaySess.where((s) => s['isActive'] == true).length;
-      final inPerson = todaySess.where((s) => s['type'] == 'inPerson').length;
-      final online = todaySess.where((s) => s['type'] == 'online').length;
-
-      return {
-        'scheduled': todaySess.length,
-        'attended': held,
-        'missed': 0, // backend doesn't track "missed" yet
-        'inPerson': inPerson,
-        'online': online,
-        'active': active,
-      };
+      final b = jsonDecode(response.body) as Map<String, dynamic>;
+      return WeeklyStats(
+        scheduled: (b['scheduled'] as num?)?.toInt() ?? 0,
+        held: (b['held'] as num?)?.toInt() ?? 0,
+        notHeld: (b['notHeld'] as num?)?.toInt() ?? 0,
+        inPerson: (b['inPerson'] as num?)?.toInt() ?? 0,
+        online: (b['online'] as num?)?.toInt() ?? 0,
+      );
     } catch (_) {
-      return _emptyStats();
+      return WeeklyStats.empty();
     }
   }
-
-  Map<String, int> _emptyStats() => {
-    'scheduled': 0,
-    'attended': 0,
-    'missed': 0,
-    'inPerson': 0,
-    'online': 0,
-    'active': 0,
-  };
 
   // ── FETCH ASSIGNED COURSES ────────────────────────────────────────
   // Derived from the lecturer's own past sessions — groups unique
@@ -300,6 +274,83 @@ class LecturerController {
     final m = dt.minute.toString().padLeft(2, '0');
     final p = dt.hour >= 12 ? 'PM' : 'AM';
     return '$h:$m $p';
+  }
+
+  // ── FETCH COURSE SUMMARY ──────────────────────────────────────────
+  // GET /api/attendance/my-course-summary
+  Future<List<CourseSummaryModel>> fetchCourseSummary() async {
+    final session = await SessionService.getSession();
+    if (session == null) return [];
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/my-course-summary'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return [];
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final courses = (body['courses'] as List? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      return courses.map((c) {
+        final rawHistory = (c['sessionHistory'] as List? ?? [])
+            .cast<Map<String, dynamic>>();
+        final history = rawHistory
+            .map(
+              (s) => SessionHistoryModel(
+                sessionId: s['sessionId']?.toString() ?? '',
+                date:
+                    DateTime.tryParse(s['date'] as String? ?? '') ??
+                    DateTime.now(),
+                type: s['type'] as String? ?? 'inPerson',
+                studentsPresent: (s['studentsPresent'] as num?)?.toInt() ?? 0,
+                studentsAbsent: (s['studentsAbsent'] as num?)?.toInt() ?? 0,
+                totalStudents: (s['totalStudents'] as num?)?.toInt() ?? 0,
+              ),
+            )
+            .toList();
+
+        return CourseSummaryModel(
+          id: c['_id']?.toString() ?? '',
+          courseCode: c['courseCode'] as String? ?? '',
+          courseName: c['courseName'] as String? ?? '',
+          department:
+              c['department'] as String? ?? c['faculty'] as String? ?? '',
+          totalStudents: (c['totalStudents'] as num?)?.toInt() ?? 0,
+          held: (c['held'] as num?)?.toInt() ?? 0,
+          inPerson: (c['inPerson'] as num?)?.toInt() ?? 0,
+          online: (c['online'] as num?)?.toInt() ?? 0,
+          sessionHistory: history,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ── FETCH SESSION DETAIL ──────────────────────────────────────────
+  // GET /api/attendance/sessions/:sessionId/detail
+  Future<Map<String, dynamic>?> fetchSessionDetail(String sessionId) async {
+    final session = await SessionService.getSession();
+    if (session == null) return null;
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.attendanceUrl}/sessions/$sessionId/detail'),
+            headers: {'Authorization': 'Bearer ${session.token}'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return null;
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── GET LOCATION ──────────────────────────────────────────────────

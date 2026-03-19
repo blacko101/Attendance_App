@@ -10,11 +10,11 @@ class LecturerCourseModel {
   final String courseName;
   final String department;
   final int totalStudents;
-  final List<int> weekdays; // 1=Mon…7=Sun
-  final String schedule; // "Mon, Wed, Fri"
+  final List<int> weekdays;
+  final String schedule;
   final String room;
-  final String startTime; // "10:00 AM"
-  final String endTime; // "11:30 AM"
+  final String startTime;
+  final String endTime;
 
   const LecturerCourseModel({
     required this.id,
@@ -30,7 +30,7 @@ class LecturerCourseModel {
   });
 }
 
-// ── A single class session in the weekly schedule
+// ── A single class session in the weekly schedule ──
 enum SessionStatus { upcoming, active, held, notHeld, cancelled }
 
 class WeeklySessionModel {
@@ -42,6 +42,8 @@ class WeeklySessionModel {
   final String startTime;
   final String endTime;
   final SessionStatus status;
+  final String? sessionType; // "inPerson" | "online" — from actual session
+  final String? actualSessionId; // DB _id of the attendance session if held
   final int? studentsAttended;
   final int? totalStudents;
   final String? notHeldReason;
@@ -55,6 +57,8 @@ class WeeklySessionModel {
     required this.startTime,
     required this.endTime,
     required this.status,
+    this.sessionType,
+    this.actualSessionId,
     this.studentsAttended,
     this.totalStudents,
     this.notHeldReason,
@@ -82,6 +86,119 @@ class WeeklySessionModel {
     ];
     return '${date.day} ${months[date.month - 1]}';
   }
+}
+
+// ── Weekly stats ────────────────────────────────
+class WeeklyStats {
+  final int scheduled;
+  final int held;
+  final int notHeld;
+  final int inPerson;
+  final int online;
+
+  const WeeklyStats({
+    required this.scheduled,
+    required this.held,
+    required this.notHeld,
+    required this.inPerson,
+    required this.online,
+  });
+
+  factory WeeklyStats.empty() => const WeeklyStats(
+    scheduled: 0,
+    held: 0,
+    notHeld: 0,
+    inPerson: 0,
+    online: 0,
+  );
+}
+
+// ── Course summary (Summary page) ──────────────
+class CourseSummaryModel {
+  final String id;
+  final String courseCode;
+  final String courseName;
+  final String department;
+  final int totalStudents;
+  final int held;
+  final int inPerson;
+  final int online;
+  final List<SessionHistoryModel> sessionHistory;
+
+  const CourseSummaryModel({
+    required this.id,
+    required this.courseCode,
+    required this.courseName,
+    required this.department,
+    required this.totalStudents,
+    required this.held,
+    required this.inPerson,
+    required this.online,
+    required this.sessionHistory,
+  });
+
+  int get missed => sessionHistory
+      .where((s) => s.studentsPresent == 0 && s.totalStudents == 0)
+      .length;
+}
+
+// ── A single session in a course's history ──────
+class SessionHistoryModel {
+  final String sessionId;
+  final DateTime date;
+  final String type; // "inPerson" | "online"
+  final int studentsPresent;
+  final int studentsAbsent;
+  final int totalStudents;
+
+  const SessionHistoryModel({
+    required this.sessionId,
+    required this.date,
+    required this.type,
+    required this.studentsPresent,
+    required this.studentsAbsent,
+    required this.totalStudents,
+  });
+
+  String get formattedDate {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String get typeLabel => type == 'inPerson' ? 'In-Person' : 'Online';
+}
+
+// ── Per-student attendance in a session ────────
+class SessionStudentModel {
+  final String studentId;
+  final String fullName;
+  final String email;
+  final String indexNumber;
+  final bool present;
+  final DateTime? checkedInAt;
+
+  const SessionStudentModel({
+    required this.studentId,
+    required this.fullName,
+    required this.email,
+    required this.indexNumber,
+    required this.present,
+    this.checkedInAt,
+  });
 }
 
 // ── Lecturer profile model ──────────────────────
