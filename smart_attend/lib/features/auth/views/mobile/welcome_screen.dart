@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_attend/features/auth/controllers/auth_controller.dart';
 import 'package:smart_attend/features/auth/views/mobile/login_screen.dart';
+import 'package:smart_attend/features/auth/views/mobile/face_registration_screen.dart';
 import 'package:smart_attend/features/auth/widgets/custom_button_widget.dart';
 import 'package:smart_attend/features/student/views/mobile/student_dashboard.dart';
 import 'package:smart_attend/features/lecturer/views/lecturer_dashboard.dart';
@@ -33,6 +34,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
     if (user != null) {
       final role = user.role.toLowerCase().trim();
+
+      // ── Face registration check ────────────────────────────────
+      // Students must register their face before accessing the
+      // dashboard. Runs on every app launch until face is registered.
+      if (role == 'student' && !user.faceRegistered) {
+        Navigator.pushReplacementNamed(
+          context,
+          FaceRegistrationScreen.id,
+        );
+        return;
+      }
+
+      // ── Route to correct dashboard ─────────────────────────────
       final String destination;
       switch (role) {
         case 'lecturer':
@@ -71,7 +85,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       backgroundColor: const Color(0xFFFFFFFF),
       body: Stack(
         children: [
-          // ── Decorative circles (fixed, not constrained) ──
           Positioned(
             top: 0, left: 0,
             child: SizedBox(
@@ -104,8 +117,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   fit: BoxFit.fill),
             ),
           ),
-
-          // ── Main content — constrained for web ──
           SafeArea(
             child: Center(
               child: ConstrainedBox(

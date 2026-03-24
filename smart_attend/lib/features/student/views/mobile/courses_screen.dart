@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
-import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/core/theme/app_colors.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
 import 'package:smart_attend/features/student/controllers/courses_controller.dart';
@@ -103,12 +100,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   // ── PASSWORD VERIFY & ENROLL ─────────────────────────────────────
   void _showEnrollConfirmDialog() {
-    final newCodes = _selectedForEnroll
-        .where(
-          (c) =>
-              !_availableCourses.any((a) => a.courseCode == c && a.isEnrolled),
-        )
-        .toList();
 
     if (_selectedForEnroll.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -524,7 +515,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                     itemCount: _myCourses.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (_, i) => _CourseCard(
                       course: _myCourses[i],
                       onTap: () => _showCourseDetail(_myCourses[i]),
@@ -629,7 +620,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
                   itemCount: _availableCourses.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) {
                     final c = _availableCourses[i];
                     final selected = _selectedForEnroll.contains(c.courseCode);
@@ -1370,7 +1361,7 @@ class _CourseDetailSheet extends StatelessWidget {
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: course.history.length,
-                      separatorBuilder: (_, __) => Divider(
+                      separatorBuilder: (_, _) => Divider(
                         color: AppColors.divider(context),
                         thickness: 1,
                         height: 1,

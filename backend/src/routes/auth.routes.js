@@ -9,6 +9,7 @@ const {
   getMe,
   updateRole,
   changePassword,
+  registerFace,
 } = require("../controllers/auth.controller");
 
 router.post("/register", register);
@@ -43,6 +44,14 @@ router.post("/login", login);
 router.get("/me", authMiddleware, getMe);
 
 router.post("/change-password", authMiddleware, changePassword);
+
+// ── Face registration — student only ──────────────────────────────
+router.post(
+  "/register-face",
+  authMiddleware,
+  roleMiddleware("student"),
+  registerFace
+);
 
 router.patch(
   "/users/:id/role",

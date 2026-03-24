@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:smart_attend/features/auth/controllers/auth_controller.dart';
 import 'package:smart_attend/features/auth/views/mobile/change_password_screen.dart';
+import 'package:smart_attend/features/auth/views/mobile/face_registration_screen.dart';
 import 'package:smart_attend/features/auth/widgets/custom_button_widget.dart';
 import 'package:smart_attend/features/student/views/mobile/student_dashboard.dart';
 import 'package:smart_attend/features/lecturer/views/lecturer_dashboard.dart';
@@ -51,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _navigateByRole(
         user.role.toLowerCase().trim(),
         mustChangePassword: user.mustChangePassword,
+        faceRegistered: user.faceRegistered,
       );
     } catch (e) {
       if (!mounted) return;
@@ -60,7 +62,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _navigateByRole(String role, {bool mustChangePassword = false}) {
+  void _navigateByRole(
+      String role, {
+        bool mustChangePassword = false,
+        bool faceRegistered = false,
+      }) {
     if (mustChangePassword) {
       final String nextRoute;
       switch (role) {
@@ -79,6 +85,14 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       Navigator.pushReplacementNamed(
           context, ChangePasswordScreen.id, arguments: nextRoute);
+      return;
+    }
+
+    // ── Face registration check for students ──────────────────────
+    // If the student hasn't registered their face yet, send them
+    // to the face registration screen before the dashboard.
+    if (role == 'student' && !faceRegistered) {
+      Navigator.pushReplacementNamed(context, FaceRegistrationScreen.id);
       return;
     }
 

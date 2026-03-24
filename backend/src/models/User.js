@@ -54,6 +54,19 @@ const userSchema = new mongoose.Schema(
 
     staffId:  { type: String, trim: true },
 
+    // ── Face registration (student) ────────────────────────────────
+    // Base64-encoded reference selfie captured on first login.
+    // Used in Phase 3 to verify identity on every attendance check-in.
+    profilePhoto: {
+      type:    String,   // base64 encoded JPEG
+      default: null,
+    },
+
+    faceRegistered: {
+      type:    Boolean,
+      default: false,
+    },
+
     isActive: {
       type:    Boolean,
       default: true,

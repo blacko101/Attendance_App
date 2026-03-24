@@ -19,18 +19,18 @@ class AuthController {
     try {
       final response = await http
           .post(
-            Uri.parse('${AppConfig.authUrl}/login'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'email': email.trim().toLowerCase(),
-              'password': password,
-            }),
-          )
+        Uri.parse('${AppConfig.authUrl}/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+          'password': password,
+        }),
+      )
           .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () =>
-                throw Exception('Connection timed out. Check your internet.'),
-          );
+        const Duration(seconds: 15),
+        onTimeout: () =>
+        throw Exception('Connection timed out. Check your internet.'),
+      );
 
       final Map<String, dynamic> body = jsonDecode(response.body);
 
@@ -48,9 +48,10 @@ class AuthController {
           fullName: userData['fullName'] as String? ?? '',
           email: userData['email'] as String? ?? email.trim().toLowerCase(),
           mustChangePassword:
-              body['mustChangePassword'] as bool? ??
+          body['mustChangePassword'] as bool? ??
               userData['mustChangePassword'] as bool? ??
               false,
+          faceRegistered: userData['faceRegistered'] as bool? ?? false,
           indexNumber: userData['indexNumber'] as String?,
           programme: userData['programme'] as String?,
           level: userData['level'] as String?,
@@ -68,7 +69,7 @@ class AuthController {
       } else if (response.statusCode == 429) {
         final msg =
             body['message'] as String? ??
-            'Too many attempts. Please try again later.';
+                'Too many attempts. Please try again later.';
         throw Exception(msg);
       } else if (response.statusCode == 500) {
         throw Exception('Server error. Please try again later.');
@@ -117,16 +118,16 @@ class AuthController {
 
     final response = await http
         .post(
-          Uri.parse('${AppConfig.authUrl}/change-password'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${session.token}',
-          },
-          body: jsonEncode({
-            'currentPassword': currentPassword,
-            'newPassword': newPassword,
-          }),
-        )
+      Uri.parse('${AppConfig.authUrl}/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.token}',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    )
         .timeout(const Duration(seconds: 15));
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -159,7 +160,7 @@ class AuthController {
       Navigator.pushNamedAndRemoveUntil(
         context,
         LoginScreen.id,
-        (route) => false,
+            (route) => false,
       );
     }
   }

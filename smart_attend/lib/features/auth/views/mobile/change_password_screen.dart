@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
+import 'package:smart_attend/features/auth/views/mobile/face_registration_screen.dart';
 import 'package:smart_attend/features/auth/widgets/custom_button_widget.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -66,6 +67,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (response.statusCode == 200) {
         final updated = session.copyWithPasswordChanged();
         await SessionService.saveSession(updated);
+
+        if (!mounted) return;
+
+        // Students who haven't registered their face yet must do
+        // so before accessing the dashboard — redirect them there.
+        if (updated.role == 'student' && !updated.faceRegistered) {
+          Navigator.pushReplacementNamed(
+              context, FaceRegistrationScreen.id);
+          return;
+        }
+
         Navigator.pushReplacementNamed(context, widget.nextRoute);
       } else {
         final body = jsonDecode(response.body) as Map<String, dynamic>;

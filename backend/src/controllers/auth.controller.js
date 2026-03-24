@@ -270,3 +270,53 @@ exports.updateRole = async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
+// ─────────────────────────────────────────────────────────────────
+//  REGISTER FACE
+//  POST /api/auth/register-face
+//  Auth: student only
+//  Body: { photo: "base64string..." }
+//
+//  Saves the student's reference selfie to their user document.
+//  Sets faceRegistered = true so the app never shows the
+//  registration screen again.
+// ─────────────────────────────────────────────────────────────────
+exports.registerFace = async (req, res) => {
+  try {
+    const { photo } = req.body;
+
+    if (!photo || typeof photo !== "string" || photo.trim().length === 0) {
+      return res.status(400).json({ message: "A valid photo is required." });
+    }
+
+    // Validate it looks like a base64 string (basic check)
+    // A real base64 image string is very long — reject anything suspiciously short
+    if (photo.length < 1000) {
+      return res.status(400).json({ message: "Photo data appears invalid." });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Only students register faces
+    if (user.role !== "student") {
+      return res.status(403).json({
+        message: "Face registration is only available for students.",
+      });
+    }
+
+    user.profilePhoto   = photo;
+    user.faceRegistered = true;
+    await user.save();
+
+    return res.status(200).json({
+      message:        "Face registered successfully.",
+      faceRegistered: true,
+    });
+
+  } catch (error) {
+    console.error("registerFace error:", error.message);
+    return res.status(500).json({ message: "Server error. Please try again." });
+  }
+};
