@@ -8,6 +8,7 @@ import 'package:smart_attend/features/student/views/mobile/student_dashboard.dar
 import 'package:smart_attend/features/lecturer/views/lecturer_dashboard.dart';
 import 'package:smart_attend/features/dean/views/dean_access_screen.dart';
 import 'package:smart_attend/features/super_admin/views/super_admin_dashboard.dart';
+import 'package:smart_attend/features/admin/views/admin_dashboard.dart';
 
 class WelcomeScreen extends StatefulWidget {
   static String id = 'welcome_screen';
@@ -39,10 +40,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       // Students must register their face before accessing the
       // dashboard. Runs on every app launch until face is registered.
       if (role == 'student' && !user.faceRegistered) {
-        Navigator.pushReplacementNamed(
-          context,
-          FaceRegistrationScreen.id,
-        );
+        Navigator.pushReplacementNamed(context, FaceRegistrationScreen.id);
         return;
       }
 
@@ -52,8 +50,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         case 'lecturer':
           destination = LecturerDashboard.id;
           break;
-        case 'admin':
+        case 'super_admin':
           destination = SuperAdminDashboard.id;
+          break;
+        case 'admin':
+          destination = AdminDashboard.id;
           break;
         case 'dean':
           destination = DeanAccessScreen.id;
@@ -86,35 +87,49 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       body: Stack(
         children: [
           Positioned(
-            top: 0, left: 0,
+            top: 0,
+            left: 0,
             child: SizedBox(
               width: 180,
-              child: Image.asset('assets/images/circle_2.png',
-                  fit: BoxFit.cover),
+              child: Image.asset(
+                'assets/images/circle_2.png',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           Positioned(
-            top: 0, left: 0,
+            top: 0,
+            left: 0,
             child: SizedBox(
-              width: 102, height: 150,
-              child: Image.asset('assets/images/circle_1.png',
-                  fit: BoxFit.fill),
+              width: 102,
+              height: 150,
+              child: Image.asset(
+                'assets/images/circle_1.png',
+                fit: BoxFit.fill,
+              ),
             ),
           ),
           Positioned(
-            bottom: 0, right: 0,
+            bottom: 0,
+            right: 0,
             child: SizedBox(
               width: 180,
-              child: Image.asset('assets/images/circle_3.png',
-                  fit: BoxFit.cover),
+              child: Image.asset(
+                'assets/images/circle_3.png',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           Positioned(
-            bottom: 0, right: 0,
+            bottom: 0,
+            right: 0,
             child: SizedBox(
-              width: 102, height: 140,
-              child: Image.asset('assets/images/circle_4.png',
-                  fit: BoxFit.fill),
+              width: 102,
+              height: 140,
+              child: Image.asset(
+                'assets/images/circle_4.png',
+                fit: BoxFit.fill,
+              ),
             ),
           ),
           SafeArea(

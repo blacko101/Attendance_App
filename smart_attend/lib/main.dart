@@ -11,6 +11,7 @@ import 'package:smart_attend/features/lecturer/views/lecturer_dashboard.dart';
 import 'package:smart_attend/features/dean/views/dean_access_screen.dart';
 import 'package:smart_attend/features/dean/views/dean_dashboard.dart';
 import 'package:smart_attend/features/super_admin/views/super_admin_dashboard.dart';
+import 'package:smart_attend/features/admin/views/admin_dashboard.dart';
 import 'package:smart_attend/features/attendance/views/mobile/qr_scanner_screen.dart';
 
 void main() {
@@ -86,15 +87,16 @@ class MyApp extends StatelessWidget {
         return null;
       },
       routes: {
-        WelcomeScreen.id:          (context) => const WelcomeScreen(),
-        LoginScreen.id:            (context) => const LoginScreen(),
+        WelcomeScreen.id: (context) => const WelcomeScreen(),
+        LoginScreen.id: (context) => const LoginScreen(),
         FaceRegistrationScreen.id: (context) => const FaceRegistrationScreen(),
-        StudentDashboard.id:       (context) => const StudentDashboard(),
-        LecturerDashboard.id:      (context) => const LecturerDashboard(),
-        DeanAccessScreen.id:       (context) => const DeanAccessScreen(),
-        DeanDashboard.id:          (context) => const DeanDashboard(),
-        SuperAdminDashboard.id:    (context) => const SuperAdminDashboard(),
-        QrScannerScreen.id:        (context) => const QrScannerScreen(),
+        StudentDashboard.id: (context) => const StudentDashboard(),
+        LecturerDashboard.id: (context) => const LecturerDashboard(),
+        DeanAccessScreen.id: (context) => const DeanAccessScreen(),
+        DeanDashboard.id: (context) => const DeanDashboard(),
+        SuperAdminDashboard.id: (context) => const SuperAdminDashboard(),
+        AdminDashboard.id: (context) => const AdminDashboard(),
+        QrScannerScreen.id: (context) => const QrScannerScreen(),
       },
     );
   }

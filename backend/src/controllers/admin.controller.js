@@ -65,15 +65,24 @@ const PROGRAMME_TO_FACULTY = {
 exports.listUsers = async (req, res) => {
   try {
     const { role, isActive, search, page = 1, limit = 20 } = req.query;
+    const dept = req.user.department || req.user.faculty || "";
 
     const filter = {};
 
-    const validRoles = ["student", "lecturer", "admin", "dean"];
-    if (role) {
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({ message: `role must be one of: ${validRoles.join(", ")}.` });
-      }
+    // Scope to this admin's department — only students and lecturers
+    if (dept) {
+      filter.$or = [
+        { faculty: dept },
+        { department: dept },
+        { departments: dept },
+      ];
+    }
+    // Admin can only manage students and lecturers
+    const validRoles = ["student", "lecturer"];
+    if (role && validRoles.includes(role)) {
       filter.role = role;
+    } else {
+      filter.role = { $in: validRoles };
     }
 
     if (isActive !== undefined) filter.isActive = isActive === "true";
@@ -81,7 +90,8 @@ exports.listUsers = async (req, res) => {
     if (search) {
       const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const pattern = new RegExp(escaped, "i");
-      filter.$or = [{ fullName: pattern }, { email: pattern }];
+      filter.$and = filter.$and || [];
+      filter.$and.push({ $or: [{ fullName: pattern }, { email: pattern }] });
     }
 
     const pageNum  = Math.max(1, parseInt(page, 10)  || 1);
@@ -143,8 +153,17 @@ exports.createUser = async (req, res) => {
     }
 
     // ── Lecturer validation ──────────────────────────────────────
+    // Department is inherited from the admin — no need for the admin to select it
     if (role === "lecturer") {
-      const depts = Array.isArray(departments) ? departments : (department ? [department] : []);
+      const adminDept = req.user.department || req.user.faculty || "";
+      if (!department && !departments && adminDept) {
+        // auto-fill from admin's own department
+        req.body.department  = adminDept;
+        req.body.departments = [adminDept];
+      }
+      const depts = Array.isArray(req.body.departments)
+        ? req.body.departments
+        : (req.body.department ? [req.body.department] : []);
       if (depts.length === 0) {
         return res.status(400).json({ message: "At least one department is required for lecturers." });
       }
@@ -159,7 +178,10 @@ exports.createUser = async (req, res) => {
     const hashedPassword = await require("bcryptjs").hash(rawPassword, 10);
 
     // ── Auto-derive faculty for students ─────────────────────────
-    let resolvedFaculty = faculty || "";
+    // If admin creates a student, faculty comes from the programme mapping
+    // OR falls back to the admin's own department.
+    const adminDept = req.user.department || req.user.faculty || "";
+    let resolvedFaculty = faculty || adminDept;
     if (role === "student" && programme) {
       resolvedFaculty = PROGRAMME_TO_FACULTY[programme] || resolvedFaculty;
     }
@@ -368,23 +390,74 @@ exports.getSessionReport = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 exports.getStats = async (req, res) => {
   try {
+    const dept = req.user.department || req.user.faculty || "";
+    const deptFilter = dept
+      ? { $or: [{ faculty: dept }, { department: dept }, { departments: dept }] }
+      : {};
+
+    const mongoose = require("mongoose");
+    const Course   = mongoose.models.Course;
+    const Timetable = mongoose.models.Timetable;
+
     const [
-      totalUsers, totalStudents, totalLecturers, totalAdmins,
-      suspendedUsers, totalSessions, activeSessions, totalAttendance,
+      totalStudents, totalLecturers,
+      totalSessions, activeSessions, totalAttendance,
     ] = await Promise.all([
-      User.countDocuments({}),
-      User.countDocuments({ role: "student" }),
-      User.countDocuments({ role: "lecturer" }),
-      User.countDocuments({ role: "admin" }),
-      User.countDocuments({ isActive: false }),
+      User.countDocuments({ role: "student",  isActive: true,  ...deptFilter }),
+      User.countDocuments({ role: "lecturer", isActive: true,  ...deptFilter }),
       AttendanceSession.countDocuments({}),
       AttendanceSession.countDocuments({ isActive: true }),
       Attendance.countDocuments({}),
     ]);
 
+    let totalCourses = 0;
+    if (Course && dept) {
+      totalCourses = await Course.countDocuments({
+        $or: [{ faculty: dept }, { department: dept }],
+      });
+    }
+
+    // Attendance rate: % of enrolled sessions where student was present
+    let attendanceRate = 0;
+    let holdingRate    = 0;
+    if (dept) {
+      const lecturerIds = (await User.find({ role: "lecturer", ...deptFilter }).select("_id"))
+        .map(l => l._id);
+      const deptSessions = await AttendanceSession.find({
+        lecturerId: { $in: lecturerIds },
+        isActive:   false,
+      }).select("_id");
+      const sessionIds = deptSessions.map(s => s._id);
+
+      if (sessionIds.length > 0) {
+        const presentCount = await Attendance.countDocuments({
+          sessionId: { $in: sessionIds }, status: "present",
+        });
+        const totalCheckins = await Attendance.countDocuments({
+          sessionId: { $in: sessionIds },
+        });
+        attendanceRate = totalCheckins > 0
+          ? Math.round((presentCount / totalCheckins) * 100) : 0;
+      }
+
+      if (Timetable && totalCourses > 0) {
+        const scheduledCount = await Timetable.countDocuments({
+          $or: [
+            { lecturerId: { $in: lecturerIds } },
+          ],
+        });
+        holdingRate = scheduledCount > 0
+          ? Math.round((deptSessions.length / scheduledCount) * 100) : 0;
+      }
+    }
+
     return res.status(200).json({
-      users:      { total: totalUsers, students: totalStudents, lecturers: totalLecturers, admins: totalAdmins, suspended: suspendedUsers },
-      sessions:   { total: totalSessions, active: activeSessions },
+      totalStudents,
+      totalLecturers,
+      totalCourses,
+      attendanceRate,
+      holdingRate,
+      sessions: { total: totalSessions, active: activeSessions },
       attendance: { total: totalAttendance },
     });
   } catch (err) {
@@ -403,14 +476,20 @@ exports.listCourses = async (req, res) => {
 
     if (!Course) return res.status(200).json({ count: 0, courses: [] });
 
+    const dept = req.user.department || req.user.faculty || "";
     const { search, programme, level } = req.query;
     const filter = {};
 
+    // Scope to admin's department
+    if (dept) {
+      filter.$or = [{ faculty: dept }, { department: dept }];
+    }
     if (programme) filter.programme = programme;
     if (level)     filter.level     = level;
     if (search) {
       const re = new RegExp(search, "i");
-      filter.$or = [{ courseCode: re }, { courseName: re }];
+      filter.$and = filter.$and || [];
+      filter.$and.push({ $or: [{ courseCode: re }, { courseName: re }] });
     }
 
     const courses = await Course.find(filter)
@@ -451,11 +530,26 @@ exports.listTimetable = async (req, res) => {
 
     if (!Timetable) return res.status(200).json({ count: 0, slots: [] });
 
+    const dept = req.user.department || req.user.faculty || "";
     const { programme, level, semester } = req.query;
     const filter = {};
-    if (programme) filter.programme = programme;
-    if (level)     filter.level     = level;
     if (semester)  filter.semester  = semester;
+    if (level)     filter.level     = level;
+
+    // Scope timetable to programmes that belong to this department
+    if (programme) {
+      filter.programme = programme;
+    } else if (dept) {
+      // Find all programmes for this faculty from courses
+      const mongoose2 = require("mongoose");
+      const Course2   = mongoose2.models.Course;
+      if (Course2) {
+        const deptCourses = await Course2.find({
+          $or: [{ faculty: dept }, { department: dept }],
+        }).distinct("programme");
+        if (deptCourses.length > 0) filter.programme = { $in: deptCourses };
+      }
+    }
 
     const slots = await Timetable.find(filter)
       .sort({ day: 1, startTime: 1 })

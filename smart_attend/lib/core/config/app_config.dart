@@ -21,12 +21,12 @@ class AppConfig {
   static String get _host {
     if (kIsWeb) return 'http://localhost:5000'; // Flutter Web / Chrome
     return 'http://10.10.43.251:5000'; // Physical device
-
   }
 
   static String get baseUrl => '$_host/api';
   static String get authUrl => '$_host/api/auth';
   static String get attendanceUrl => '$_host/api/attendance';
   static String get adminUrl => '$_host/api/admin';
+  static String get superAdminUrl => '$_host/api/super-admin';
   static String get deanUrl => '$_host/api/dean';
 }

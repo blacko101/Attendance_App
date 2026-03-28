@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:smart_attend/core/config/app_config.dart';
 import 'package:smart_attend/features/auth/services/session_service.dart';
-import 'package:smart_attend/features/super_admin/models/admin_model.dart';
+import 'package:smart_attend/features/admin/models/admin_model.dart';
 
 class AdminController {
   // ─────────────────────────────────────────────

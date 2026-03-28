@@ -9,6 +9,7 @@ import 'package:smart_attend/features/student/views/mobile/student_dashboard.dar
 import 'package:smart_attend/features/lecturer/views/lecturer_dashboard.dart';
 import 'package:smart_attend/features/dean/views/dean_access_screen.dart';
 import 'package:smart_attend/features/super_admin/views/super_admin_dashboard.dart';
+import 'package:smart_attend/features/admin/views/admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   static String id = 'login_screen';
@@ -19,11 +20,11 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _authController     = AuthController();
-  final _formKey            = GlobalKey<FormState>();
-  final _emailController    = TextEditingController();
+  final _authController = AuthController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _passwordFocusNode  = FocusNode();
+  final _passwordFocusNode = FocusNode();
 
   bool _isVisible = false;
   bool _isLoading = false;
@@ -63,18 +64,21 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _navigateByRole(
-      String role, {
-        bool mustChangePassword = false,
-        bool faceRegistered = false,
-      }) {
+    String role, {
+    bool mustChangePassword = false,
+    bool faceRegistered = false,
+  }) {
     if (mustChangePassword) {
       final String nextRoute;
       switch (role) {
         case 'lecturer':
           nextRoute = LecturerDashboard.id;
           break;
-        case 'admin':
+        case 'super_admin':
           nextRoute = SuperAdminDashboard.id;
+          break;
+        case 'admin':
+          nextRoute = AdminDashboard.id;
           break;
         case 'dean':
           nextRoute = DeanAccessScreen.id;
@@ -84,7 +88,10 @@ class _LoginScreenState extends State<LoginScreen> {
           break;
       }
       Navigator.pushReplacementNamed(
-          context, ChangePasswordScreen.id, arguments: nextRoute);
+        context,
+        ChangePasswordScreen.id,
+        arguments: nextRoute,
+      );
       return;
     }
 
@@ -101,8 +108,11 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'lecturer':
         destination = LecturerDashboard.id;
         break;
-      case 'admin':
+      case 'super_admin':
         destination = SuperAdminDashboard.id;
+        break;
+      case 'admin':
+        destination = AdminDashboard.id;
         break;
       case 'dean':
         destination = DeanAccessScreen.id;
@@ -121,8 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
         content: Text(message, style: GoogleFonts.poppins(fontSize: 13)),
         backgroundColor: const Color(0xFF9B1B42),
         behavior: SnackBarBehavior.floating,
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
       ),
     );
@@ -178,13 +187,13 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // ── Logo + App Name ──
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                height: 50, width: 50,
+                height: 50,
+                width: 50,
                 child: Image.asset('assets/images/cap.png'),
               ),
               const SizedBox(width: 10),
@@ -204,9 +213,9 @@ class _LoginScreenState extends State<LoginScreen> {
           // ── Hero Image ──
           Center(
             child: SizedBox(
-              height: 100, width: 100,
-              child: Image.asset('assets/images/cal.png',
-                  fit: BoxFit.contain),
+              height: 100,
+              width: 100,
+              child: Image.asset('assets/images/cal.png', fit: BoxFit.contain),
             ),
           ),
 
@@ -226,11 +235,14 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 28),
 
           // ── Email ──
-          Text('Email',
-              style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87)),
+          Text(
+            'Email',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+          ),
           const SizedBox(height: 8),
           TextFormField(
             controller: _emailController,
@@ -256,11 +268,14 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 20),
 
           // ── Password ──
-          Text('Password',
-              style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87)),
+          Text(
+            'Password',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+          ),
           const SizedBox(height: 8),
           TextFormField(
             controller: _passwordController,
@@ -287,8 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       : Icons.visibility_off_outlined,
                   color: Colors.grey,
                 ),
-                onPressed: () =>
-                    setState(() => _isVisible = !_isVisible),
+                onPressed: () => setState(() => _isVisible = !_isVisible),
               ),
             ),
           ),
@@ -335,8 +349,7 @@ class _LoginScreenState extends State<LoginScreen> {
       filled: true,
       fillColor: const Color(0xFFF5F5F5),
       hintText: hint,
-      hintStyle:
-      GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
+      hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
       prefixIcon: Icon(icon, color: Colors.black),
       suffixIcon: suffix,
       border: OutlineInputBorder(

@@ -34,6 +34,12 @@ router.post(
 );
 
 router.post(
+  "/super-admin/login",
+  (req, _res, next) => { req.expectedRole = "super_admin"; next(); },
+  login
+);
+
+router.post(
   "/dean/login",
   (req, _res, next) => { req.expectedRole = "dean"; next(); },
   login
