@@ -39,11 +39,10 @@ if (!mongoose.models.Timetable) {
 }
 
 // ── Route imports ──────────────────────────────────────────────────
-const authRoutes            = require("./routes/auth.routes");
-const attendanceRoutes      = require("./routes/attendance.routes");
-const adminRoutes           = require("./routes/admin.routes");
-const deanRoutes            = require("./routes/dean.routes");
-const superAdminRoutes      = require("./routes/super_admin.routes");
+const authRoutes       = require("./routes/auth.routes");
+const attendanceRoutes = require("./routes/attendance.routes");
+const adminRoutes      = require("./routes/admin.routes");
+const deanRoutes       = require("./routes/dean.routes");
 
 // ── App init ───────────────────────────────────────────────────────
 const app = express();
@@ -74,7 +73,9 @@ app.use(cors({
 }));
 
 // ── Body parser ────────────────────────────────────────────────────
-app.use(express.json({ limit: "10kb" }));
+// Limit increased to 10mb for base64 face photos
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ══════════════════════════════════════════════════════════════════
 //  RATE LIMITERS
@@ -168,19 +169,10 @@ app.use("/api/attendance/checkin",   checkinLimiter);
 app.use("/api",                      generalLimiter);
 
 // ── Routes ───────────────────────────────────────────────────────
-// ── Register Faculty model ────────────────────────────────────────
-if (!mongoose.models.Faculty) {
-  mongoose.model("Faculty", new mongoose.Schema({
-    name:       { type: String, required: true, unique: true, trim: true },
-    programmes: { type: [String], default: [] },
-  }, { timestamps: true }));
-}
-
-app.use("/api/auth",         authRoutes);
-app.use("/api/attendance",   attendanceRoutes);
-app.use("/api/admin",        adminRoutes);
-app.use("/api/super-admin",  superAdminRoutes);
-app.use("/api/dean",         deanRoutes);
+app.use("/api/auth",       authRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/admin",      adminRoutes);
+app.use("/api/dean",       deanRoutes);
 
 // ── Health check ─────────────────────────────────────────────────
 app.get("/", (req, res) => {
