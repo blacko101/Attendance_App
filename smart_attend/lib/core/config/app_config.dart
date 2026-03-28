@@ -20,7 +20,7 @@ class AppConfig {
 
   static String get _host {
     if (kIsWeb) return 'http://localhost:5000'; // Flutter Web / Chrome
-    return 'http://10.10.43.251:5000'; // Physical device
+    return 'http://10.247.207.184:5000'; // Physical device
   }
 
   static String get baseUrl => '$_host/api';
